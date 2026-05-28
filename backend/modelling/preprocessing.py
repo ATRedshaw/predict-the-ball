@@ -1,6 +1,6 @@
 """Preprocess raw fixture/result CSVs into a single, clean results dataset.
 
-Reads every CSV under data/raw/<league>/, extracts date, home_team, away_team,
+Reads every CSV under data/raw/<league>/, extracts date, season, home_team, away_team,
 home_score, and away_score, then writes the combined output to
 data/preprocessed/results.csv sorted chronologically.
 
@@ -66,7 +66,7 @@ def load_league_csv(path: Path) -> pd.DataFrame:
         path: Path to the raw CSV file.
 
     Returns:
-        DataFrame with columns ``[date, home_team, away_team, home_score, away_score]``,
+        DataFrame with columns ``[date, season, home_team, away_team, home_score, away_score]``,
         or an empty DataFrame if no valid rows exist.
     """
     try:
@@ -75,7 +75,7 @@ def load_league_csv(path: Path) -> pd.DataFrame:
         log.warning("Could not read %s: %s", path, exc)
         return pd.DataFrame()
 
-    required = {"date", "home_team", "away_team", "score"}
+    required = {"date", "season", "home_team", "away_team", "score"}
     missing = required - set(df.columns.str.lower())
     if missing:
         log.warning("Skipping %s — missing columns: %s", path.name, missing)
@@ -84,7 +84,7 @@ def load_league_csv(path: Path) -> pd.DataFrame:
     # Normalise column names to lowercase for consistent access.
     df.columns = df.columns.str.lower()
 
-    df = df[["date", "home_team", "away_team", "score"]].copy()
+    df = df[["date", "season", "home_team", "away_team", "score"]].copy()
 
     scores = df["score"].apply(parse_score)
     valid = scores.notna()
@@ -111,7 +111,7 @@ def build_dataset(raw_dir: Path) -> pd.DataFrame:
 
     Returns:
         A single DataFrame sorted by date with columns
-        ``[date, home_team, away_team, home_score, away_score]``.
+        ``[date, season, home_team, away_team, home_score, away_score]``.
     """
     frames = []
     csv_files = sorted(raw_dir.rglob("*.csv"))
@@ -127,7 +127,7 @@ def build_dataset(raw_dir: Path) -> pd.DataFrame:
 
     if not frames:
         log.warning("No data loaded — output will be empty.")
-        return pd.DataFrame(columns=["date", "home_team", "away_team", "home_score", "away_score"])
+        return pd.DataFrame(columns=["date", "season", "home_team", "away_team", "home_score", "away_score"])
 
     combined = pd.concat(frames, ignore_index=True)
     combined = combined.sort_values("date").reset_index(drop=True)
