@@ -4,6 +4,9 @@ from config import Config
 from extensions import db, migrate, jwt, mail, bcrypt
 from routes import auth_bp, leagues_bp, predictions_bp, standings_bp, users_bp
 
+# In-memory JWT blocklist. Replace with a persistent store (Redis, DB) in production.
+_jwt_blocklist: set[str] = set()
+
 
 def create_app(config_class: type = Config) -> Flask:
     """
@@ -25,6 +28,10 @@ def create_app(config_class: type = Config) -> Flask:
     mail.init_app(app)
     bcrypt.init_app(app)
 
+    @jwt.token_in_blocklist_loader
+    def check_if_token_revoked(jwt_header, jwt_payload) -> bool:
+        return jwt_payload["jti"] in _jwt_blocklist
+
     # Import models so Flask-Migrate can detect them
     with app.app_context():
         import models  # noqa: F401
@@ -37,6 +44,15 @@ def create_app(config_class: type = Config) -> Flask:
     app.register_blueprint(users_bp)
 
     return app
+
+
+def get_jwt_blocklist() -> set[str]:
+    """Return the application-level JWT blocklist set.
+
+    Returns:
+        The set of revoked JWT IDs.
+    """
+    return _jwt_blocklist
 
 
 if __name__ == "__main__":

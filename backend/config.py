@@ -1,12 +1,33 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
 
+_BASE_DIR = Path(__file__).resolve().parent
+
+
+def _resolve_db_url(url: str) -> str:
+    """Convert a relative sqlite:/// URL to an absolute path anchored to the
+    project root, so the database is found regardless of the working directory.
+
+    Args:
+        url: Raw DATABASE_URL string from the environment.
+
+    Returns:
+        URL with an absolute file path when the scheme is sqlite, otherwise
+        the original string unchanged.
+    """
+    if url.startswith("sqlite:///") and not url.startswith("sqlite:////"):
+        relative_part = url[len("sqlite:///"):]
+        absolute_path = _BASE_DIR / relative_part
+        return f"sqlite:///{absolute_path}"
+    return url
+
 
 class Config:
     SECRET_KEY = os.environ["SECRET_KEY"]
-    SQLALCHEMY_DATABASE_URI = os.environ["DATABASE_URL"]
+    SQLALCHEMY_DATABASE_URI = _resolve_db_url(os.environ["DATABASE_URL"])
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]

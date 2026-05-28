@@ -5,3 +5,6 @@ __pycache__/
 backend/modelling/modelling_config.yaml
 .DS_Store
 .env
+temp.py
+migrations/
+instance/
