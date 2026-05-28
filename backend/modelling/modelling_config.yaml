@@ -1,0 +1,13 @@
+data:
+  # FBref league IDs to fetch.
+  leagues:
+    - "ENG-Premier League"
+    - "ENG-Championship"
+
+  # Season end-years to include (2017 = 2016-17 season, etc.).
+  season_start: 2017
+  season_end: 2026
+
+  # Output location, relative to backend/.
+  output_dir: "modelling/data/raw"
+  output_filename: "schedules.csv"
