@@ -2,7 +2,7 @@
 data from FBref.
 
 Fetches the game schedule (fixtures and results) per league per season as
-defined in modelling/modelling_config.yaml.  Each combination is saved as an
+defined in modelling/config/retrieve.yaml.  Each combination is saved as an
 individual CSV, e.g. EPL_2016_2017.csv.  Files that already exist are skipped,
 so the script is safe to re-run after interruption.
 
@@ -26,7 +26,7 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-CONFIG_PATH = Path(__file__).parent / "modelling_config.yaml"
+CONFIG_PATH = Path(__file__).parent / "config/retrieve.yaml"
 
 # Script is run from backend/, so paths in config are relative to that.
 BACKEND_DIR = Path(__file__).parent.parent
