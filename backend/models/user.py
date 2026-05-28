@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from extensions import db, bcrypt
 
@@ -17,9 +17,9 @@ class User(db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     verification_code = db.Column(db.String(6), nullable=True)
-    verification_code_expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    verification_code_sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    verification_code_expires_at = db.Column(db.DateTime, nullable=True)
+    verification_code_sent_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
     league_memberships = db.relationship("LeagueMember", back_populates="user", lazy="dynamic")
@@ -32,7 +32,7 @@ class User(db.Model):
             The plaintext 6-digit code to include in the email.
         """
         code = f"{secrets.randbelow(1_000_000):06d}"
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         self.verification_code = code
         self.verification_code_expires_at = now + timedelta(minutes=_CODE_TTL_MINUTES)
         self.verification_code_sent_at = now
@@ -46,7 +46,7 @@ class User(db.Model):
         """
         if self.verification_code_sent_at is None:
             return True
-        elapsed = (datetime.now(timezone.utc) - self.verification_code_sent_at).total_seconds()
+        elapsed = (datetime.utcnow() - self.verification_code_sent_at).total_seconds()
         return elapsed >= _RESEND_COOLDOWN_SECONDS
 
     def set_password(self, password: str) -> None:

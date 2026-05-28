@@ -7,7 +7,7 @@ from flask_jwt_extended import (
 )
 from flask_mail import Message
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-from datetime import datetime, timezone
+from datetime import datetime
 
 from extensions import db, mail
 from models.user import User
@@ -123,7 +123,7 @@ def verify_email():
         return jsonify({"message": "email already verified"}), 200
     if not user.verification_code or user.verification_code != code:
         return jsonify({"error": "invalid verification code"}), 400
-    if user.verification_code_expires_at < datetime.now(timezone.utc):
+    if user.verification_code_expires_at < datetime.utcnow():
         return jsonify({"error": "verification code has expired — request a new one"}), 400
 
     user.is_verified = True
