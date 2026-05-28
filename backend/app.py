@@ -1,7 +1,8 @@
 from flask import Flask
+from pathlib import Path
 
 from config import Config
-from extensions import db, migrate, jwt, mail, bcrypt
+from extensions import db, jwt, mail, bcrypt
 from routes import auth_bp, leagues_bp, predictions_bp, standings_bp, users_bp
 
 # In-memory JWT blocklist. Replace with a persistent store (Redis, DB) in production.
@@ -23,7 +24,6 @@ def create_app(config_class: type = Config) -> Flask:
 
     # Initialise extensions
     db.init_app(app)
-    migrate.init_app(app, db)
     jwt.init_app(app)
     mail.init_app(app)
     bcrypt.init_app(app)
@@ -32,9 +32,16 @@ def create_app(config_class: type = Config) -> Flask:
     def check_if_token_revoked(jwt_header, jwt_payload) -> bool:
         return jwt_payload["jti"] in _jwt_blocklist
 
-    # Import models so Flask-Migrate can detect them
     with app.app_context():
         import models  # noqa: F401
+
+        # Ensure the directory for the SQLite file exists before create_all.
+        db_url = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        if db_url.startswith("sqlite:///"):
+            db_path = Path(db_url[len("sqlite:///"):])
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        db.create_all()
 
     # Register blueprints
     app.register_blueprint(auth_bp)
