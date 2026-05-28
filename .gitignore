@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 backend/modelling/modelling_config.yaml
 .DS_Store
+.env
