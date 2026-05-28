@@ -3,11 +3,40 @@ data:
   leagues:
     - "ENG-Premier League"
     - "ENG-Championship"
+    - "ENG-FA Cup"
+    - "ENG-EFL Cup"
 
-  # Season end-years to include (2017 = 2016-17 season, etc.).
-  season_start: 2017
-  season_end: 2026
+  # Season START years. 2016 = the 2016-17 season.
+  # The anchor league is probed first to find the latest available season;
+  # all other leagues are then fetched up to that same season.
+  season_start: 2016
+  anchor_league: "ENG-Premier League"
 
-  # Output location, relative to backend/.
+  # Short names used in output filenames, e.g. EPL_2016_2017.csv.
+  # Must have an entry for every league listed above.
+  league_aliases:
+    "ENG-Premier League": "EPL"
+    "ENG-Championship": "Championship"
+    "ENG-FA Cup": "FA_Cup"
+    "ENG-EFL Cup": "EFL_Cup"
+
+  # Output directory, relative to backend/.
   output_dir: "modelling/data/raw"
-  output_filename: "schedules.csv"
+
+# Custom leagues to register in soccerdata's league_dict.json before scraping.
+custom_leagues:
+  ENG-Championship:
+    FBref: "EFL Championship"
+    MatchHistory: "E1"
+    ClubElo: "ENG_2"
+    ESPN: "eng.2"
+    season_start: "Aug"
+    season_end: "May"
+  ENG-FA Cup:
+    FBref: "FA Cup"
+    season_start: "Aug"
+    season_end: "May"
+  ENG-EFL Cup:
+    FBref: "EFL Cup"
+    season_start: "Aug"
+    season_end: "May"
