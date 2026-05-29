@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -15,6 +15,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { api } from '../api'
+import { usePageLoading } from '../components/PageLoadingContext'
 
 // ---------------------------------------------------------------------------
 // Sortable row
@@ -114,6 +115,7 @@ function ZoneDivider({ label, lineColour }) {
  *  error      — something went wrong
  */
 export default function Predictions() {
+  const { setPageLoading } = usePageLoading()
   const [pageState, setPageState]   = useState('loading')
   const [season,    setSeason]      = useState(null)
   const [deadline,  setDeadline]    = useState(null)
@@ -128,6 +130,10 @@ export default function Predictions() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor,   { activationConstraint: { delay: 150, tolerance: 5 } }),
   )
+
+  useLayoutEffect(() => {
+    setPageLoading(true)
+  }, [])
 
   // ── fetch all data on mount ──────────────────────────────────────────────
   useEffect(() => {
@@ -159,11 +165,13 @@ export default function Predictions() {
       } catch (err) {
         console.error(err)
         setPageState('error')
+      } finally {
+        setPageLoading(false)
       }
     }
 
     load()
-  }, [])
+  }, [setPageLoading])
 
   // ── drag end ─────────────────────────────────────────────────────────────
   const handleDragEnd = useCallback(({ active, over }) => {
@@ -197,14 +205,6 @@ export default function Predictions() {
   }
 
   // ── render states ────────────────────────────────────────────────────────
-
-  if (pageState === 'loading') {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <span className="text-teal-muted text-sm animate-pulse">Loading…</span>
-      </div>
-    )
-  }
 
   if (pageState === 'error') {
     return (

@@ -1,11 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useLayoutEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from './api'
+import { usePageLoading } from './components/PageLoadingContext'
 
 function App() {
+  const { setPageLoading } = usePageLoading()
   const [season,    setSeason]    = useState(null)
   const [standings, setStandings] = useState([])
   const [updatedAt, setUpdatedAt] = useState(null)
+
+  useLayoutEffect(() => {
+    setPageLoading(true)
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -17,10 +23,12 @@ function App() {
         setUpdatedAt(table.updated_at)
       } catch {
         // Non-fatal — placeholders remain
+      } finally {
+        setPageLoading(false)
       }
     }
     load()
-  }, [])
+  }, [setPageLoading])
 
   const refreshedLabel = updatedAt
     ? new Date(updatedAt).toLocaleString('en-GB', {
