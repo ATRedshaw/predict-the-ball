@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 from pathlib import Path
 
 from config import Config
@@ -27,6 +28,8 @@ def create_app(config_class: type = Config) -> Flask:
     jwt.init_app(app)
     mail.init_app(app)
     bcrypt.init_app(app)
+
+    CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"]}}, supports_credentials=True)
 
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload) -> bool:
