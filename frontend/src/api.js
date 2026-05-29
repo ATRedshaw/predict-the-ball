@@ -23,6 +23,13 @@ async function request(path, options = {}) {
 
   const data = await res.json().catch(() => ({}))
 
+  if (res.status === 401) {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('first_name')
+    window.location.href = '/login'
+    throw new Error('Session expired. Please log in again.')
+  }
+
   if (!res.ok) {
     throw new Error(data.error || `Request failed (${res.status})`)
   }
@@ -32,5 +39,6 @@ async function request(path, options = {}) {
 
 export const api = {
   post: (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) }),
+  put:  (path, body) => request(path, { method: 'PUT',  body: JSON.stringify(body) }),
   get:  (path)       => request(path, { method: 'GET' }),
 }
