@@ -13,10 +13,10 @@ export default function Navbar({ isLoggedIn = false, username = '', activePage =
   const [menuOpen, setMenuOpen] = useState(false)
 
   const loggedInLinks = [
-    { key: 'dashboard',   label: 'Dashboard'   },
-    { key: 'predictions', label: 'Predictions' },
-    { key: 'leagues',     label: 'Leagues'     },
-    { key: 'standings',   label: 'Standings'   },
+    { key: 'home',               label: 'Home'              },
+    { key: 'predictions',        label: 'Predictions'       },
+    { key: 'leagues',            label: 'Leagues'           },
+    { key: 'model-predictions',  label: 'Model Predictions' },
   ]
 
   return (
@@ -35,9 +35,9 @@ export default function Navbar({ isLoggedIn = false, username = '', activePage =
         {isLoggedIn ? (
           <>
             {loggedInLinks.map(({ key, label }) => (
-              <a
+              <Link
                 key={key}
-                href={`/${key}`}
+                to={`/${key}`}
                 className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${
                   activePage === key
                     ? 'bg-teal text-white'
@@ -45,16 +45,16 @@ export default function Navbar({ isLoggedIn = false, username = '', activePage =
                 }`}
               >
                 {label}
-              </a>
+              </Link>
             ))}
-            <div className="ml-2 flex items-center gap-2 border border-white/10 rounded-xl px-3 py-1.5">
+            <Link to="/settings" className="ml-2 flex items-center gap-2 border border-white/10 rounded-xl px-3 py-1.5 hover:bg-white/5 transition-colors">
               <div className="w-5 h-5 rounded-full bg-teal flex items-center justify-center">
                 <span className="text-white text-[10px] font-bold">
                   {username ? username[0].toUpperCase() : '?'}
                 </span>
               </div>
               <span className="text-white text-sm">{username || 'Account'}</span>
-            </div>
+            </Link>
           </>
         ) : (
           <>
@@ -93,9 +93,9 @@ export default function Navbar({ isLoggedIn = false, username = '', activePage =
                 <span className="text-white text-sm">{username || 'Account'}</span>
               </div>
               {loggedInLinks.map(({ key, label }) => (
-                <a
+                <Link
                   key={key}
-                  href={`/${key}`}
+                  to={`/${key}`}
                   className={`text-sm px-3 py-2 rounded-xl transition-colors ${
                     activePage === key
                       ? 'bg-teal text-white'
@@ -104,8 +104,15 @@ export default function Navbar({ isLoggedIn = false, username = '', activePage =
                   onClick={() => setMenuOpen(false)}
                 >
                   {label}
-                </a>
+                </Link>
               ))}
+              <Link
+                to="/settings"
+                className="text-sm px-3 py-2 rounded-xl transition-colors text-teal-muted hover:text-white hover:bg-white/5"
+                onClick={() => setMenuOpen(false)}
+              >
+                Settings
+              </Link>
             </>
           ) : (
             <>

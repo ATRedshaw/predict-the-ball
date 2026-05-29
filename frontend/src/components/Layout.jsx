@@ -3,11 +3,12 @@ import Navbar from './Navbar'
 import Footer from './Footer'
 
 const PATH_TO_PAGE = {
-  '/':          'landing',
-  '/home':      'dashboard',
-  '/predictions': 'predictions',
-  '/leagues':   'leagues',
-  '/standings': 'standings',
+  '/':                   'landing',
+  '/home':               'home',
+  '/predictions':        'predictions',
+  '/leagues':            'leagues',
+  '/model-predictions':  'model-predictions',
+  '/settings':           'settings',
 }
 
 /**

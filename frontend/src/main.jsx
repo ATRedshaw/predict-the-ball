@@ -10,6 +10,7 @@ import Login          from './pages/Login.jsx'
 import SignUp         from './pages/SignUp.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
 import Home           from './pages/Home.jsx'
+import NotFound       from './pages/NotFound.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -26,8 +27,15 @@ createRoot(document.getElementById('root')).render(
 
           {/* Authenticated only */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/home" element={<Home />} />
+            <Route path="/home"               element={<Home />} />
+            <Route path="/predictions"        element={<div />} />
+            <Route path="/leagues"            element={<div />} />
+            <Route path="/model-predictions"  element={<div />} />
+            <Route path="/settings"           element={<div />} />
           </Route>
+
+          {/* Catch-all */}
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
     </BrowserRouter>
