@@ -88,7 +88,7 @@ export default function SignUp() {
                       autoComplete="given-name"
                       required
                       value={firstName}
-                      onChange={e => setFirstName(e.target.value)}
+                      onChange={e => setFirstName(e.target.value.replace(/\b\w/g, c => c.toUpperCase()))}
                       className="w-full bg-jet rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none border border-transparent focus:border-teal transition-colors"
                       placeholder="Alex"
                     />
@@ -102,7 +102,7 @@ export default function SignUp() {
                       autoComplete="family-name"
                       required
                       value={lastName}
-                      onChange={e => setLastName(e.target.value)}
+                      onChange={e => setLastName(e.target.value.replace(/\b\w/g, c => c.toUpperCase()))}
                       className="w-full bg-jet rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none border border-transparent focus:border-teal transition-colors"
                       placeholder="Smith"
                     />
