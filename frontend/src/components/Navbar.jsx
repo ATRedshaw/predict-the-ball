@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 /**
  * Top navigation bar.
@@ -57,12 +58,12 @@ export default function Navbar({ isLoggedIn = false, username = '', activePage =
           </>
         ) : (
           <>
-            <button className="text-mist text-sm hover:text-white transition-colors">
+            <Link to="/login" className="text-mist text-sm hover:text-white transition-colors">
               Log in
-            </button>
-            <button className="bg-teal hover:bg-teal-muted text-white text-sm px-4 py-2 rounded-lg transition-colors">
+            </Link>
+            <Link to="/signup" className="bg-teal hover:bg-teal-muted text-white text-sm px-4 py-2 rounded-lg transition-colors">
               Sign up free
-            </button>
+            </Link>
           </>
         )}
       </div>
@@ -108,18 +109,20 @@ export default function Navbar({ isLoggedIn = false, username = '', activePage =
             </>
           ) : (
             <>
-              <button
-                className="text-mist text-sm px-3 py-2 rounded-xl hover:text-white hover:bg-white/5 transition-colors text-left"
+              <Link
+                to="/login"
+                className="text-mist text-sm px-3 py-2 rounded-xl hover:text-white hover:bg-white/5 transition-colors block"
                 onClick={() => setMenuOpen(false)}
               >
                 Log in
-              </button>
-              <button
-                className="bg-teal text-white text-sm px-3 py-2 rounded-xl hover:bg-teal-muted transition-colors text-left"
+              </Link>
+              <Link
+                to="/signup"
+                className="bg-teal text-white text-sm px-3 py-2 rounded-xl hover:bg-teal-muted transition-colors block"
                 onClick={() => setMenuOpen(false)}
               >
                 Sign up free
-              </button>
+              </Link>
             </>
           )}
         </div>
