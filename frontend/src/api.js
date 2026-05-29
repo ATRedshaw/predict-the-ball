@@ -1,3 +1,5 @@
+import { loadingBus } from './loadingBus'
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:5000'
 
 /**
@@ -12,29 +14,34 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:5000'
 async function request(path, options = {}) {
   const token = localStorage.getItem('access_token')
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-    ...options,
-  })
+  loadingBus.start()
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+      ...options,
+    })
 
-  const data = await res.json().catch(() => ({}))
+    const data = await res.json().catch(() => ({}))
 
-  if (res.status === 401) {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('first_name')
-    window.location.href = '/login'
-    throw new Error('Session expired. Please log in again.')
+    if (res.status === 401) {
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('first_name')
+      window.location.href = '/login'
+      throw new Error('Session expired. Please log in again.')
+    }
+
+    if (!res.ok) {
+      throw new Error(data.error || `Request failed (${res.status})`)
+    }
+
+    return data
+  } finally {
+    loadingBus.end()
   }
-
-  if (!res.ok) {
-    throw new Error(data.error || `Request failed (${res.status})`)
-  }
-
-  return data
 }
 
 export const api = {

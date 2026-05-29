@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import Navbar from './Navbar'
 import Footer from './Footer'
+import TopLoadingBar from './TopLoadingBar'
 
 const PATH_TO_PAGE = {
   '/':                   'landing',
@@ -24,6 +25,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-jet p-4 md:p-6 font-sans flex flex-col">
+      <TopLoadingBar />
       <Navbar isLoggedIn={isLoggedIn} activePage={activePage} username={firstName} />
       <div className="flex-1 flex flex-col">
         <Outlet />
