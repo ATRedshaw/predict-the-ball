@@ -71,6 +71,10 @@ def register():
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
 
+    # Convert first name and last name to Title case
+    first_name = " ".join([word.capitalize() for word in first_name.split()])
+    last_name = " ".join([word.capitalize() for word in last_name.split()])
+
     if not first_name or not last_name or not email or not password:
         return jsonify({"error": "first_name, last_name, email and password are required"}), 400
     if len(password) < 8:
