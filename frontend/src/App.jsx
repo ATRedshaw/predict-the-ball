@@ -1,7 +1,168 @@
+import Navbar from './components/Navbar'
+import Footer from './components/Footer'
+
 function App() {
+  // TODO: replace with real auth state
+  const isLoggedIn = false
+  const username   = ''
+
   return (
-    <div>
-      Hello world!
+    <div className="min-h-screen bg-jet p-4 md:p-6 font-sans">
+
+      <Navbar isLoggedIn={isLoggedIn} username={username} activePage="landing" />
+
+      {/* ── Bento grid ── */}
+      <div className="grid grid-cols-12 grid-rows-[auto] gap-4 max-w-7xl mx-auto">
+
+        {/* Hero — spans 8 cols */}
+        <div className="col-span-12 md:col-span-8 bg-teal rounded-2xl p-8 md:p-10 flex flex-col justify-between min-h-64 relative overflow-hidden">
+          <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-jet opacity-20" />
+          <div className="absolute bottom-0 left-1/2 w-48 h-48 rounded-full bg-teal-muted opacity-10" />
+
+          <div className="relative z-10">
+            <span className="inline-block bg-jet text-teal-muted text-xs font-medium px-3 py-1 rounded-full mb-4">
+              {/* populated from API */} — Season · —
+            </span>
+            <h1 className="text-white text-4xl md:text-5xl font-bold leading-tight tracking-tight max-w-xl">
+              Predict the table.
+              <br />
+              <span className="text-mist">Beat your mates.</span>
+            </h1>
+            <p className="text-mist mt-4 max-w-md text-base opacity-80">
+              Pick where every Premier League club finishes before a ball is kicked. Your final score is the gap between your predictions and reality, where the lowest total wins.
+            </p>
+          </div>
+
+          <div className="relative z-10 flex gap-3 mt-8">
+            <button className="bg-white text-jet font-semibold text-sm px-6 py-3 rounded-xl hover:bg-bone transition-colors">
+              Get started
+            </button>
+            <button className="border border-white/30 text-white text-sm px-6 py-3 rounded-xl hover:bg-white/10 transition-colors">
+              How it works
+            </button>
+          </div>
+        </div>
+
+        {/* Live standings — 4 cols */}
+        <div className="col-span-12 md:col-span-4 bg-jet-dark rounded-2xl p-6 flex flex-col min-h-64">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-teal-muted text-xs font-medium uppercase tracking-widest">Current Table</span>
+            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          </div>
+          <p className="text-teal text-[10px] mb-4">Last refreshed xx:xx on yyyy-mm-dd</p>
+
+          <div className="space-y-2 flex-1">
+            {[
+              { pos: 1,  club: '—', pts: '—' },
+              { pos: 2,  club: '—', pts: '—' },
+              { pos: 3,  club: '—', pts: '—' },
+              { pos: 4,  club: '—', pts: '—' },
+              { pos: 5,  club: '—', pts: '—' },
+            ].map(({ pos, club, pts }) => (
+              <div key={pos} className="flex items-center gap-3">
+                <span className="text-teal text-xs w-4 font-mono">{pos}</span>
+                <div className="flex-1 h-7 bg-jet rounded-lg px-3 flex items-center justify-between">
+                  <span className="text-white/30 text-xs italic">{club}</span>
+                  <span className="text-teal-muted/40 text-xs font-mono">{pts}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Scoring — 4 cols */}
+        <div className="col-span-12 md:col-span-4 bg-bone rounded-2xl p-6">
+          <span className="text-teal text-xs font-medium uppercase tracking-widest">Scoring</span>
+          <h2 className="text-jet text-xl font-bold mt-2 mb-1 leading-snug">Lowest score wins</h2>
+          <p className="text-jet/60 text-xs mb-4">
+            Your score is the total error across all 20 positions. Predict 3rd, finish 5th: that's 2 points added. Nail it exactly: 0.
+          </p>
+          <div className="space-y-2">
+            {[
+              { example: 'Predicted 1st, finished 1st', error: '+0' },
+              { example: 'Predicted 3rd, finished 4th', error: '+1' },
+              { example: 'Predicted 5th, finished 9th', error: '+4' },
+              { example: 'Predicted 2nd, finished 9th', error: '+7' },
+            ].map(({ example, error }) => (
+              <div key={example} className="flex items-center justify-between bg-white/60 rounded-xl px-4 py-2.5">
+                <span className="text-jet text-xs">{example}</span>
+                <span className="text-teal font-bold text-sm">{error}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Elo engine callout — 4 cols */}
+        <div className="col-span-12 md:col-span-4 bg-teal-muted rounded-2xl p-6 flex flex-col justify-between">
+          <div>
+            <span className="text-jet text-xs font-medium uppercase tracking-widest">Under the hood</span>
+            <h2 className="text-jet text-xl font-bold mt-2 leading-snug">
+              Mathematical model as a running benchmark
+            </h2>
+            <p className="text-jet/70 text-sm mt-3">
+              A separate mathematical model simulates the remaining fixtures each gameweek, giving a data-driven view of where the table could land. It won't affect your score, but gives a mathematical point of comparison as the season unfolds.
+            </p>
+          </div>
+          <div className="mt-6 flex items-end gap-1 h-12">
+            {[40, 55, 45, 70, 60, 80, 72, 90, 85, 95].map((h, i) => (
+              <div
+                key={i}
+                className="flex-1 bg-teal rounded-sm opacity-80"
+                style={{ height: `${h}%` }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Leagues — 4 cols */}
+        <div className="col-span-12 md:col-span-4 bg-mist rounded-2xl p-6">
+          <span className="text-teal text-xs font-medium uppercase tracking-widest">Private Leagues</span>
+          <h2 className="text-jet text-xl font-bold mt-2 mb-4 leading-snug">Compete with whoever you like</h2>
+          <div className="space-y-2">
+            {[
+              { name: 'The Office Draft',   members: 8      },
+              { name: 'Sunday League Boys', members: 12     },
+              { name: 'Global Public',      members: '1.4k' },
+            ].map(({ name, members }) => (
+              <div key={name} className="flex items-center justify-between bg-white/50 rounded-xl px-4 py-3">
+                <span className="text-jet text-sm font-medium">{name}</span>
+                <span className="text-teal text-xs">{members} members</span>
+              </div>
+            ))}
+          </div>
+          <button className="mt-4 w-full bg-teal text-white text-sm py-2.5 rounded-xl hover:bg-jet transition-colors">
+            Create a league
+          </button>
+        </div>
+
+        {/* Stats strip — full width */}
+        <div className="col-span-12 bg-jet-dark rounded-2xl px-6 py-5 flex flex-col md:flex-row items-center justify-between gap-4">
+          {[
+            { value: '12,000+', label: 'Predictions made' },
+            { value: '340',     label: 'Active leagues'   }
+          ].map(({ value, label }) => (
+            <div key={label} className="text-center flex-1">
+              <p className="text-white text-2xl font-bold">{value}</p>
+              <p className="text-teal-muted text-xs mt-1">{label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA — full width */}
+        <div className="col-span-12 bg-teal rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div>
+            <h2 className="text-white text-2xl font-bold">Ready to make your call?</h2>
+            <p className="text-mist text-sm mt-1 opacity-80">Predictions lock when the season starts. Get yours in early.</p>
+          </div>
+          <button className="bg-white text-jet font-semibold px-8 py-3 rounded-xl hover:bg-bone transition-colors whitespace-nowrap">
+            Create free account
+          </button>
+        </div>
+
+      </div>
+
+      <Footer />
+
     </div>
   )
 }
