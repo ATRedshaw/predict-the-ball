@@ -8,7 +8,7 @@ from flask_jwt_extended import (
 from flask_mail import Message
 from datetime import datetime
 
-from extensions import db, mail
+from extensions import db, mail, limiter
 from models.user import User
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
@@ -55,6 +55,7 @@ def _send_reset_code_email(user: User, code: str) -> None:
 
 
 @auth_bp.post("/register")
+@limiter.limit("5 per hour")
 def register():
     """Register a new user.
 
@@ -91,6 +92,7 @@ def register():
 
 
 @auth_bp.post("/verify-email")
+@limiter.limit("20 per hour")
 def verify_email():
     """Verify an email address using a 6-digit code.
 
@@ -124,6 +126,7 @@ def verify_email():
 
 
 @auth_bp.post("/resend-verification")
+@limiter.limit("5 per hour")
 def resend_verification():
     """Resend a verification code to the given email address.
 
@@ -155,6 +158,7 @@ def resend_verification():
 
 
 @auth_bp.post("/login")
+@limiter.limit("20 per minute")
 def login():
     """Authenticate a user and return a JWT access token.
 
@@ -223,6 +227,7 @@ def me():
 
 
 @auth_bp.post("/forgot-password")
+@limiter.limit("5 per hour")
 def forgot_password():
     """Send a 6-digit password-reset code to the given address.
 
@@ -246,6 +251,7 @@ def forgot_password():
 
 
 @auth_bp.post("/resend-reset-code")
+@limiter.limit("5 per hour")
 def resend_reset_code():
     """Resend a password-reset code to the given email address.
 
@@ -276,6 +282,7 @@ def resend_reset_code():
 
 
 @auth_bp.post("/reset-forgotten-password")
+@limiter.limit("5 per hour")
 def reset_forgotten_password():
     """Reset a user's password using a 6-digit code from the forgot-password flow.
 
@@ -312,6 +319,7 @@ def reset_forgotten_password():
 
 @auth_bp.post("/reset-password")
 @jwt_required()
+@limiter.limit("10 per hour")
 def reset_password():
     """Reset the current user's password after verifying their existing one.
 
