@@ -275,9 +275,9 @@ def resend_reset_code():
     return jsonify({"message": "A new reset code has been sent."}), 200
 
 
-@auth_bp.post("/reset-password")
-def reset_password():
-    """Reset a user's password using a 6-digit code.
+@auth_bp.post("/reset-forgotten-password")
+def reset_forgotten_password():
+    """Reset a user's password using a 6-digit code from the forgot-password flow.
 
     Body: { email, code, new_password }
 
@@ -308,4 +308,36 @@ def reset_password():
     user.password_reset_code_sent_at = None
     db.session.commit()
     return jsonify({"message": "password reset successfully"}), 200
+
+
+@auth_bp.post("/reset-password")
+@jwt_required()
+def reset_password():
+    """Reset the current user's password after verifying their existing one.
+
+    Requires: Authorization header with Bearer token.
+    Body: { current_password, new_password }
+
+    Returns:
+        200 on success, 400 on validation failure, 401 if current password is wrong.
+    """
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "user not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    current_password = data.get("current_password") or ""
+    new_password = data.get("new_password") or ""
+
+    if not current_password or not new_password:
+        return jsonify({"error": "current_password and new_password are required"}), 400
+    if len(new_password) < 8:
+        return jsonify({"error": "new password must be at least 8 characters"}), 400
+    if not user.check_password(current_password):
+        return jsonify({"error": "current password is incorrect"}), 401
+
+    user.set_password(new_password)
+    db.session.commit()
+    return jsonify({"message": "password updated successfully"}), 200
 
