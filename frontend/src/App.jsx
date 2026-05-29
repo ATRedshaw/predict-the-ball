@@ -1,16 +1,8 @@
-import Navbar from './components/Navbar'
-import Footer from './components/Footer'
+import { Link } from 'react-router-dom'
 
 function App() {
-  // TODO: replace with real auth state
-  const isLoggedIn = false
-  const username   = ''
-
   return (
-    <div className="min-h-screen bg-jet p-4 md:p-6 font-sans">
-
-      <Navbar isLoggedIn={isLoggedIn} username={username} activePage="landing" />
-
+    <>
       {/* ── Bento grid ── */}
       <div className="grid grid-cols-12 grid-rows-[auto] gap-4 max-w-7xl mx-auto">
 
@@ -34,9 +26,9 @@ function App() {
           </div>
 
           <div className="relative z-10 flex gap-3 mt-8">
-            <button className="bg-white text-jet font-semibold text-sm px-6 py-3 rounded-xl hover:bg-bone transition-colors">
+            <Link to="/signup" className="bg-white text-jet font-semibold text-sm px-6 py-3 rounded-xl hover:bg-bone transition-colors">
               Get started
-            </button>
+            </Link>
             <button className="border border-white/30 text-white text-sm px-6 py-3 rounded-xl hover:bg-white/10 transition-colors">
               How it works
             </button>
@@ -154,16 +146,13 @@ function App() {
             <h2 className="text-white text-2xl font-bold">Ready to make your call?</h2>
             <p className="text-mist text-sm mt-1 opacity-80">Predictions lock when the season starts. Get yours in early.</p>
           </div>
-          <button className="bg-white text-jet font-semibold px-8 py-3 rounded-xl hover:bg-bone transition-colors whitespace-nowrap">
+          <Link to="/signup" className="bg-white text-jet font-semibold px-8 py-3 rounded-xl hover:bg-bone transition-colors whitespace-nowrap">
             Create free account
-          </button>
+          </Link>
         </div>
 
       </div>
-
-      <Footer />
-
-    </div>
+    </>
   )
 }
 
