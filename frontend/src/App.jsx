@@ -74,7 +74,7 @@ function App() {
               { example: 'Predicted 1st, finished 1st', error: '+0' },
               { example: 'Predicted 3rd, finished 4th', error: '+1' },
               { example: 'Predicted 5th, finished 9th', error: '+4' },
-              { example: 'Predicted 2nd, finished 9th', error: '+7' },
+              { example: 'Predicted 9th, finished 2nd', error: '+7' },
             ].map(({ example, error }) => (
               <div key={example} className="flex items-center justify-between bg-white/60 rounded-xl px-4 py-2.5">
                 <span className="text-jet text-xs">{example}</span>
