@@ -5,7 +5,7 @@ from extensions import db
 from models.actual_standing import ActualStanding
 from models.points_deduction import PointsDeduction
 from models.user import User
-from services.epl import get_latest_epl_season, has_season_kicked_off, get_first_kickoff
+from services.epl import get_latest_epl_season, has_season_kicked_off, get_first_kickoff, get_season_teams
 
 standings_bp = Blueprint("standings", __name__, url_prefix="/api/standings")
 
@@ -172,6 +172,22 @@ def get_deadline(season: str):
         "kicked_off": kicked_off,
         "deadline": first_kickoff.isoformat() if first_kickoff else None,
     })
+
+
+@standings_bp.get("/<string:season>/teams")
+def get_season_team_list(season: str):
+    """Return the alphabetically sorted list of teams for the given season.
+
+    Reads directly from the season CSV — does not require a DB snapshot.
+    Useful for building prediction forms before any actual standings exist.
+
+    Args:
+        season: Season string in ``'20xx-xx'`` format.
+    """
+    teams = get_season_teams(season)
+    if not teams:
+        return jsonify({"error": "No team data found for this season"}), 404
+    return jsonify({"season": season, "teams": teams})
 
 
 # ---------------------------------------------------------------------------

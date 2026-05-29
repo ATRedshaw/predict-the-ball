@@ -31,6 +31,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
+    JWT_ACCESS_TOKEN_EXPIRES = 60 * 60 * 24 * 60  # 60 days
 
     MAIL_SERVER = os.environ["MAIL_SERVER"]
     MAIL_PORT = int(os.environ["MAIL_PORT"])

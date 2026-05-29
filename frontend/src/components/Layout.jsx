@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import Navbar from './Navbar'
 import Footer from './Footer'
+import { PageLoadingProvider } from './PageLoadingContext'
 
 const PATH_TO_PAGE = {
   '/':                   'landing',
@@ -23,12 +24,14 @@ export default function Layout() {
   const firstName    = localStorage.getItem('first_name') ?? ''
 
   return (
-    <div className="min-h-screen bg-jet p-4 md:p-6 font-sans flex flex-col">
-      <Navbar isLoggedIn={isLoggedIn} activePage={activePage} username={firstName} />
-      <div className="flex-1 flex flex-col">
-        <Outlet />
+    <PageLoadingProvider>
+      <div className="min-h-screen bg-jet p-4 md:p-6 font-sans flex flex-col">
+        <Navbar isLoggedIn={isLoggedIn} activePage={activePage} username={firstName} />
+        <div className="flex-1 flex flex-col">
+          <Outlet />
+        </div>
+        <Footer />
       </div>
-      <Footer />
-    </div>
+    </PageLoadingProvider>
   )
 }
