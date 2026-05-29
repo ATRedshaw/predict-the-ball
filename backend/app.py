@@ -3,7 +3,7 @@ from flask_cors import CORS
 from pathlib import Path
 
 from config import Config
-from extensions import db, jwt, mail, bcrypt
+from extensions import db, jwt, mail, bcrypt, limiter
 from routes import auth_bp, leagues_bp, predictions_bp, standings_bp, users_bp
 
 # In-memory JWT blocklist. Replace with a persistent store (Redis, DB) in production.
@@ -28,6 +28,7 @@ def create_app(config_class: type = Config) -> Flask:
     jwt.init_app(app)
     mail.init_app(app)
     bcrypt.init_app(app)
+    limiter.init_app(app)
 
     CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"]}}, supports_credentials=True)
 
