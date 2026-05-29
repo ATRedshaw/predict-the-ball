@@ -6,21 +6,12 @@ from flask_jwt_extended import (
     jwt_required,
 )
 from flask_mail import Message
-from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from datetime import datetime
 
 from extensions import db, mail
 from models.user import User
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
-
-_PASSWORD_RESET_SALT = "password-reset"
-_TOKEN_MAX_AGE = 3600  # seconds (1 hour)
-
-
-def _serialiser() -> URLSafeTimedSerializer:
-    """Return a serialiser bound to the current app's secret key."""
-    return URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
 
 
 def _send_verification_email(user: User, code: str) -> None:
@@ -43,21 +34,20 @@ def _send_verification_email(user: User, code: str) -> None:
     mail.send(msg)
 
 
-def _send_reset_email(user: User) -> None:
-    """Send a password-reset email to the given user.
+def _send_reset_code_email(user: User, code: str) -> None:
+    """Send a 6-digit password-reset code email to the given user.
 
     Args:
-        user: The User instance requesting a password reset.
+        user: The User instance requesting a reset.
+        code: The plaintext 6-digit code to include in the email.
     """
-    token = _serialiser().dumps(user.email, salt=_PASSWORD_RESET_SALT)
-    reset_url = f"{current_app.config.get('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token={token}"
     msg = Message(
-        subject="Reset your Predict the Ball password",
+        subject="Your Predict the Ball password-reset code",
         recipients=[user.email],
         body=(
             f"Hi {user.first_name},\n\n"
-            f"Click the link below to reset your password. "
-            f"It expires in 1 hour.\n\n{reset_url}\n\n"
+            f"Your password-reset code is: {code}\n\n"
+            f"It expires in 15 minutes. Do not share it with anyone.\n\n"
             "If you didn't request a reset, you can ignore this email."
         ),
     )
@@ -234,7 +224,7 @@ def me():
 
 @auth_bp.post("/forgot-password")
 def forgot_password():
-    """Send a password-reset email to the given address.
+    """Send a 6-digit password-reset code to the given address.
 
     Body: { email }
 
@@ -244,45 +234,78 @@ def forgot_password():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
 
-    # Always return 200 to prevent user enumeration.
     if email:
         user = User.query.filter_by(email=email).first()
-        if user:
-            _send_reset_email(user)
+        if user and user.is_verified:
+            if user.can_resend_password_reset_code():
+                code = user.generate_password_reset_code()
+                db.session.commit()
+                _send_reset_code_email(user, code)
 
-    return jsonify({"message": "If that address is registered, a reset email is on its way."}), 200
+    return jsonify({"message": "If that address is registered, a reset code is on its way."}), 200
+
+
+@auth_bp.post("/resend-reset-code")
+def resend_reset_code():
+    """Resend a password-reset code to the given email address.
+
+    Body: { email }
+    Subject to a 60-second cooldown between sends.
+
+    Returns:
+        200 on success, 400 if on cooldown, 404 if not found.
+    """
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+
+    if not email:
+        return jsonify({"error": "email is required"}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.is_verified:
+        # Return 200 to avoid enumeration — same as forgot_password.
+        return jsonify({"message": "If that address is registered, a reset code is on its way."}), 200
+    if not user.can_resend_password_reset_code():
+        return jsonify({"error": "please wait before requesting another code"}), 429
+
+    code = user.generate_password_reset_code()
+    db.session.commit()
+    _send_reset_code_email(user, code)
+
+    return jsonify({"message": "A new reset code has been sent."}), 200
 
 
 @auth_bp.post("/reset-password")
 def reset_password():
-    """Reset a user's password using a token from the reset email.
+    """Reset a user's password using a 6-digit code.
 
-    Body: { token, new_password }
+    Body: { email, code, new_password }
 
     Returns:
-        200 on success, or 400 on invalid/expired token.
+        200 on success, 400 on invalid/expired code, 404 if user not found.
     """
     data = request.get_json(silent=True) or {}
-    token = data.get("token") or ""
+    email = (data.get("email") or "").strip().lower()
+    code = (data.get("code") or "").strip()
     new_password = data.get("new_password") or ""
 
-    if not token or not new_password:
-        return jsonify({"error": "token and new_password are required"}), 400
+    if not email or not code or not new_password:
+        return jsonify({"error": "email, code and new_password are required"}), 400
     if len(new_password) < 8:
         return jsonify({"error": "password must be at least 8 characters"}), 400
-
-    try:
-        email = _serialiser().loads(token, salt=_PASSWORD_RESET_SALT, max_age=_TOKEN_MAX_AGE)
-    except SignatureExpired:
-        return jsonify({"error": "reset link has expired"}), 400
-    except BadSignature:
-        return jsonify({"error": "invalid reset token"}), 400
 
     user = User.query.filter_by(email=email).first()
     if not user:
         return jsonify({"error": "user not found"}), 404
+    if not user.password_reset_code or user.password_reset_code != code:
+        return jsonify({"error": "invalid reset code"}), 400
+    if user.password_reset_code_expires_at < datetime.utcnow():
+        return jsonify({"error": "reset code has expired — request a new one"}), 400
 
     user.set_password(new_password)
+    user.password_reset_code = None
+    user.password_reset_code_expires_at = None
+    user.password_reset_code_sent_at = None
     db.session.commit()
     return jsonify({"message": "password reset successfully"}), 200
 
