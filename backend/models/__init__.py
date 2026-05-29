@@ -5,6 +5,7 @@ from models.deadline import Deadline
 from models.user_prediction import UserPrediction
 from models.actual_standing import ActualStanding
 from models.elo_projection import EloProjection
+from models.points_deduction import PointsDeduction
 
 __all__ = [
     "User",
@@ -14,4 +15,5 @@ __all__ = [
     "UserPrediction",
     "ActualStanding",
     "EloProjection",
+    "PointsDeduction",
 ]
