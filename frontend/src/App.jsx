@@ -1,6 +1,33 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { api } from './api'
 
 function App() {
+  const [season,    setSeason]    = useState(null)
+  const [standings, setStandings] = useState([])
+  const [updatedAt, setUpdatedAt] = useState(null)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const { season: s } = await api.get('/api/standings/current-season')
+        setSeason(s)
+        const table = await api.get(`/api/standings/${s}/actual/latest`)
+        setStandings(table.standings)
+        setUpdatedAt(table.updated_at)
+      } catch {
+        // Non-fatal — placeholders remain
+      }
+    }
+    load()
+  }, [])
+
+  const refreshedLabel = updatedAt
+    ? new Date(updatedAt).toLocaleString('en-GB', {
+        hour: '2-digit', minute: '2-digit',
+        day: 'numeric', month: 'short',
+      })
+    : null
   return (
     <>
       {/* ── Bento grid ── */}
@@ -13,7 +40,7 @@ function App() {
 
           <div className="relative z-10">
             <span className="inline-block bg-jet text-teal-muted text-xs font-medium px-3 py-1 rounded-full mb-4">
-              {/* populated from API */} — Season · —
+              {season ? `${season} Season` : '— Season · —'}
             </span>
             <h1 className="text-white text-4xl md:text-5xl font-bold leading-tight tracking-tight max-w-xl">
               Predict the table.
@@ -41,24 +68,31 @@ function App() {
             <span className="text-teal-muted text-xs font-medium uppercase tracking-widest">Current Table</span>
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
           </div>
-          <p className="text-teal text-[10px] mb-4">Last refreshed xx:xx on yyyy-mm-dd</p>
+          <p className="text-teal text-[10px] mb-4">
+            {refreshedLabel ? `Last refreshed ${refreshedLabel}` : 'Last refreshed —'}
+          </p>
 
-          <div className="space-y-2 flex-1">
-            {[
-              { pos: 1,  club: '—', pts: '—' },
-              { pos: 2,  club: '—', pts: '—' },
-              { pos: 3,  club: '—', pts: '—' },
-              { pos: 4,  club: '—', pts: '—' },
-              { pos: 5,  club: '—', pts: '—' },
-            ].map(({ pos, club, pts }) => (
-              <div key={pos} className="flex items-center gap-3">
-                <span className="text-teal text-xs w-4 font-mono">{pos}</span>
-                <div className="flex-1 h-7 bg-jet rounded-lg px-3 flex items-center justify-between">
-                  <span className="text-white/30 text-xs italic">{club}</span>
-                  <span className="text-teal-muted/40 text-xs font-mono">{pts}</span>
+          <div className="space-y-2 flex-1 overflow-y-auto scrollbar-none">
+            {standings.length > 0
+              ? standings.slice(0, 10).map(({ position, team, points }) => (
+                <div key={position} className="flex items-center gap-3">
+                  <span className="text-teal text-xs w-4 font-mono shrink-0">{position}</span>
+                  <div className="flex-1 h-7 bg-jet rounded-lg px-3 flex items-center justify-between">
+                    <span className="text-white text-xs truncate">{team}</span>
+                    <span className="text-teal-muted text-xs font-mono ml-2 shrink-0">{points}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+              : [1, 2, 3, 4, 5].map(pos => (
+                <div key={pos} className="flex items-center gap-3">
+                  <span className="text-teal text-xs w-4 font-mono">{pos}</span>
+                  <div className="flex-1 h-7 bg-jet rounded-lg px-3 flex items-center justify-between">
+                    <span className="text-white/30 text-xs italic">—</span>
+                    <span className="text-teal-muted/40 text-xs font-mono">—</span>
+                  </div>
+                </div>
+              ))
+            }
           </div>
         </div>
 
