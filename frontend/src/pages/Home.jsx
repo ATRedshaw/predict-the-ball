@@ -12,6 +12,7 @@ export default function Home() {
     }
 
     localStorage.removeItem('access_token')
+    localStorage.removeItem('first_name')
     navigate('/')
   }
 
