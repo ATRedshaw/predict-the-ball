@@ -5,10 +5,11 @@ import './index.css'
 import Layout         from './components/Layout.jsx'
 import GuestRoute     from './components/GuestRoute.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
-import App    from './App.jsx'
-import Login  from './pages/Login.jsx'
-import SignUp from './pages/SignUp.jsx'
-import Home   from './pages/Home.jsx'
+import App            from './App.jsx'
+import Login          from './pages/Login.jsx'
+import SignUp         from './pages/SignUp.jsx'
+import ForgotPassword from './pages/ForgotPassword.jsx'
+import Home           from './pages/Home.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -18,8 +19,9 @@ createRoot(document.getElementById('root')).render(
           {/* Unauthenticated only */}
           <Route element={<GuestRoute />}>
             <Route path="/"       element={<App />}    />
-            <Route path="/login"  element={<Login />}  />
-            <Route path="/signup" element={<SignUp />} />
+            <Route path="/login"           element={<Login />}          />
+            <Route path="/signup"          element={<SignUp />}         />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
           </Route>
 
           {/* Authenticated only */}

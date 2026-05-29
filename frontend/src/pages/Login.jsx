@@ -50,9 +50,14 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-teal-muted text-xs uppercase tracking-widest mb-2">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-teal-muted text-xs uppercase tracking-widest">
+                  Password
+                </label>
+                <Link to="/forgot-password" className="text-teal-muted text-xs hover:text-teal transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 type="password"
                 autoComplete="current-password"
