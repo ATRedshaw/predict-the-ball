@@ -335,7 +335,7 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
       {/* header */}
       <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
         <div>
-          <h1 className="text-white text-2xl font-bold leading-tight">{league.name}</h1>
+          <h1 className="text-white text-2xl font-bold leading-tight break-all">{league.name}</h1>
           <p className="text-teal-muted text-xs mt-1">{league.season} · {memberCount} member{memberCount !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
