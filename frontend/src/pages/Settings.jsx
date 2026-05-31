@@ -60,6 +60,10 @@ export default function Settings() {
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [deleteMsg,  setDeleteMsg]  = useState(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  // ownedLeagues: [{ id, name, season, other_members: [{ user_id, name }] }]
+  const [ownedLeagues, setOwnedLeagues] = useState([])
+  // transfers: { [leagueId]: userId | '' }  — '' means "delete this league"
+  const [transfers, setTransfers] = useState({})
 
   useLayoutEffect(() => {
     setPageLoading(true)
@@ -68,14 +72,22 @@ export default function Settings() {
   useEffect(() => {
     async function load() {
       try {
-        const me = await api.get('/api/auth/me')
+        const [me, leagues] = await Promise.all([
+          api.get('/api/auth/me'),
+          api.get('/api/auth/me/owned-leagues'),
+        ])
         setFirstName(me.first_name)
         setLastName(me.last_name)
         setEmail(me.email)
         setSavedFirstName(me.first_name)
         setSavedLastName(me.last_name)
+        setOwnedLeagues(leagues)
+        // Default every owned league to "delete" (empty string)
+        const defaults = {}
+        leagues.forEach(l => { defaults[l.id] = '' })
+        setTransfers(defaults)
       } catch {
-        // If something goes wrong the fields just stay blank
+        // Non-fatal — fields stay blank
       } finally {
         setPageLoading(false)
       }
@@ -146,9 +158,16 @@ export default function Settings() {
       return
     }
 
+    // Build transfer map — only include leagues where the user chose a recipient.
+    // Leagues left as '' are sent as null (backend will delete them).
+    const transferMap = {}
+    ownedLeagues.forEach(l => {
+      transferMap[l.id] = transfers[l.id] ? parseInt(transfers[l.id], 10) : null
+    })
+
     setDeleteBusy(true)
     try {
-      await api.delete('/api/auth/me')
+      await api.delete('/api/auth/me', { transfers: transferMap })
       localStorage.removeItem('access_token')
       localStorage.removeItem('first_name')
       navigate('/')
@@ -276,9 +295,41 @@ export default function Settings() {
       {/* ── Danger zone ── */}
       <Section
         title="Delete account"
-        description="This is permanent. All your predictions and league memberships will be removed."
+        description="This is permanent. Your predictions and league memberships will be removed."
       >
-        <form onSubmit={handleDeleteAccount} className="space-y-4">
+        <form onSubmit={handleDeleteAccount} className="space-y-5">
+
+          {/* Owned league transfer cards */}
+          {ownedLeagues.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-teal-muted text-xs uppercase tracking-widest">
+                You own {ownedLeagues.length} {ownedLeagues.length === 1 ? 'league' : 'leagues'}
+              </p>
+              {ownedLeagues.map(league => (
+                <div key={league.id} className="bg-jet rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{league.name}</p>
+                    <p className="text-teal-muted text-xs mt-0.5">{league.season}</p>
+                  </div>
+                  <select
+                    value={transfers[league.id] ?? ''}
+                    onChange={e => setTransfers(prev => ({ ...prev, [league.id]: e.target.value }))}
+                    className="bg-jet-dark text-white text-xs rounded-lg px-3 py-2 outline-none border border-white/10 focus:border-teal transition-colors shrink-0"
+                  >
+                    <option value="">Delete this league</option>
+                    {league.other_members.length > 0 && (
+                      <optgroup label="Transfer ownership to">
+                        {league.other_members.map(m => (
+                          <option key={m.user_id} value={m.user_id}>{m.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+
           <Field label='Type "DELETE" to confirm'>
             <input
               type="text"
