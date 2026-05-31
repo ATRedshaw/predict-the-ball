@@ -366,23 +366,126 @@ def update_profile():
     }), 200
 
 
+@auth_bp.get("/me/owned-leagues")
+@jwt_required()
+def owned_leagues():
+    """Return leagues owned by the authenticated user, with their other members.
+
+    Used by the account-deletion flow to populate transfer-ownership dropdowns.
+
+    Requires: Authorization header with Bearer token.
+
+    Returns:
+        200 with a list of owned leagues, each containing an ``other_members``
+        array of ``{ user_id, name }`` objects.
+    """
+    from models.league import League
+    from models.league_member import LeagueMember
+
+    user_id = int(get_jwt_identity())
+    owned = (
+        League.query
+        .join(LeagueMember, LeagueMember.league_id == League.id)
+        .filter(LeagueMember.user_id == user_id, LeagueMember.role == "owner")
+        .all()
+    )
+
+    result = []
+    for league in owned:
+        other_members = [
+            {
+                "user_id": m.user_id,
+                "name": f"{m.user.first_name} {m.user.last_name}" if m.user else "Unknown",
+            }
+            for m in LeagueMember.query.filter_by(league_id=league.id).all()
+            if m.user_id != user_id
+        ]
+        result.append({
+            "id": league.id,
+            "name": league.name,
+            "season": league.season,
+            "other_members": other_members,
+        })
+
+    return jsonify(result), 200
+
+
 @auth_bp.delete("/me")
 @jwt_required()
 def delete_account():
     """Permanently delete the authenticated user's account and all associated data.
 
+    For each league the user owns, they may optionally transfer ownership to an
+    existing member. Leagues without a specified transfer target are deleted in
+    full (all member rows are removed via the League cascade).
+
     Requires: Authorization header with Bearer token.
+    Body (optional): { transfers: { "<league_id>": <new_owner_user_id> | null } }
 
     Returns:
-        200 on success, 404 if user not found.
+        200 on success, 400 on invalid transfer target, 404 if user not found.
     """
+    from app import get_jwt_blocklist
+    from models.league import League
+    from models.league_member import LeagueMember
+
     user_id = int(get_jwt_identity())
     user = db.session.get(User, user_id)
     if not user:
         return jsonify({"error": "user not found"}), 404
 
+    data = request.get_json(silent=True) or {}
+    transfers = data.get("transfers") or {}
+
+    # Resolve all leagues this user owns.
+    owned = (
+        League.query
+        .join(LeagueMember, LeagueMember.league_id == League.id)
+        .filter(LeagueMember.user_id == user_id, LeagueMember.role == "owner")
+        .all()
+    )
+
+    for league in owned:
+        new_owner_id = transfers.get(str(league.id))
+
+        if new_owner_id is not None:
+            # Validate the transfer target is an existing member (not the owner).
+            new_membership = LeagueMember.query.filter_by(
+                league_id=league.id, user_id=new_owner_id,
+            ).first()
+            if new_membership is None or new_membership.user_id == user_id:
+                return jsonify({
+                    "error": f"Invalid transfer target for league '{league.name}'",
+                }), 400
+
+            owner_membership = LeagueMember.query.filter_by(
+                league_id=league.id, user_id=user_id,
+            ).first()
+            new_membership.role = "owner"
+            league.created_by = new_owner_id
+            # Remove the outgoing owner's membership — cascade will not do this
+            # automatically since we're about to delete the user.
+            if owner_membership:
+                db.session.delete(owner_membership)
+        else:
+            # No transfer requested — delete the whole league.
+            # League.members has cascade="all, delete-orphan", so all
+            # LeagueMember rows for this league are removed automatically.
+            db.session.delete(league)
+
+    # Flush ownership/deletion changes before removing the user, so FK
+    # constraints on leagues.created_by are satisfied.
+    db.session.flush()
+
+    # Delete the user. ORM cascades on User.league_memberships and
+    # User.predictions handle the remaining child rows.
     db.session.delete(user)
     db.session.commit()
+
+    # Blocklist the current token so it can't be reused.
+    jti = get_jwt()["jti"]
+    get_jwt_blocklist().add(jti)
+
     return jsonify({"message": "account deleted"}), 200
 
 
@@ -401,7 +504,7 @@ def reset_password():
     user_id = int(get_jwt_identity())
     user = db.session.get(User, user_id)
     if not user:
-        return jsonify({"error": "user not found"}), 404
+        return jsonify({"error": "User not found"}), 404
 
     data = request.get_json(silent=True) or {}
     current_password = data.get("current_password") or ""
@@ -410,11 +513,11 @@ def reset_password():
     if not current_password or not new_password:
         return jsonify({"error": "current_password and new_password are required"}), 400
     if len(new_password) < 8:
-        return jsonify({"error": "new password must be at least 8 characters"}), 400
+        return jsonify({"error": "New password must be at least 8 characters"}), 400
     if not user.check_password(current_password):
-        return jsonify({"error": "current password is incorrect"}), 401
+        return jsonify({"error": "Current password is incorrect"}), 401
 
     user.set_password(new_password)
     db.session.commit()
-    return jsonify({"message": "password updated successfully"}), 200
+    return jsonify({"message": "Password updated successfully"}), 200
 
