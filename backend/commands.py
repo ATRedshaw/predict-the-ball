@@ -18,6 +18,7 @@ sys.path.insert(0, __file__.rsplit("/", 1)[0])  # ensure backend/ is on the path
 from app import create_app
 from extensions import db
 from models.actual_standing import ActualStanding
+from models.elo_projection import EloProjection
 from models.points_deduction import PointsDeduction
 from models.user_prediction import UserPrediction
 from services.epl import (
@@ -25,6 +26,7 @@ from services.epl import (
     compute_prediction_score,
     get_latest_epl_season,
     has_season_kicked_off,
+    simulate_elo_projection,
 )
 
 
@@ -74,6 +76,40 @@ def save_actual_standings_snapshot(season: str) -> None:
     if kicked_off:
         recalculate_prediction_scores(season, table)
 
+    save_elo_projection_snapshot(season, deduction_dicts)
+
+
+def save_elo_projection_snapshot(season: str, deductions: list[dict]) -> None:
+    """Run the ELO Monte Carlo simulation and persist a projection snapshot.
+
+    Skipped when the season has not yet kicked off (no completed results means
+    there is nothing meaningful to project from).  Called automatically after
+    a new actual standings snapshot is committed.
+
+    Args:
+        season: Season string in ``'20xx-xx'`` format.
+        deductions: Active point deduction dicts for the season.
+    """
+    if not has_season_kicked_off(season):
+        print(f"Season {season} hasn't kicked off — skipping ELO projection.")
+        return
+
+    print(f"Running ELO simulation for {season}...")
+    projections = simulate_elo_projection(season, n_simulations=10_000, deductions=deductions)
+
+    if not projections:
+        print(f"ELO simulation returned no data for {season} — skipping.")
+        return
+
+    snapshot = EloProjection(
+        season=season,
+        projections=projections,
+        updated_at=datetime.now(timezone.utc),
+    )
+    db.session.add(snapshot)
+    db.session.commit()
+    print(f"Saved ELO projection snapshot for {season} ({len(projections)} teams).")
+
 
 def recalculate_prediction_scores(season: str, actual_table: list[dict]) -> None:
     """Recompute and persist ``current_points`` for every prediction in a season.
@@ -99,6 +135,3 @@ if __name__ == "__main__":
         season = get_latest_epl_season()
         print(f"Processing season: {season}")
         save_actual_standings_snapshot(season)
-
-
-# Handles standard scores ("1–2"), penalty shootouts ("(4) 1–1 (3)"), and plain hyphens.
