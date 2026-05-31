@@ -632,7 +632,7 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
       {/* past-season locked note */}
       {isPastSeason && (
         <p className="text-white/20 text-xs mt-4">
-          This league is from a previous season and is now read-only. To remove your data, delete your account from Settings.
+          This league is from a previous season and is now read-only.
         </p>
       )}
 
