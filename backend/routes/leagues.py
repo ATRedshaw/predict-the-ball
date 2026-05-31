@@ -24,6 +24,49 @@ def _get_membership(league_id: int, user_id: int) -> LeagueMember | None:
     return LeagueMember.query.filter_by(league_id=league_id, user_id=user_id).first()
 
 
+def _owned_count(user_id: int, season: str) -> int:
+    """Return the number of leagues the user currently owns in the given season.
+
+    Args:
+        user_id: ID of the user to check.
+        season: Season string in ``'20xx-xx'`` format.
+
+    Returns:
+        Integer count of owned leagues.
+    """
+    return (
+        LeagueMember.query
+        .join(League, League.id == LeagueMember.league_id)
+        .filter(
+            LeagueMember.user_id == user_id,
+            LeagueMember.role == "owner",
+            League.season == season,
+        )
+        .count()
+    )
+
+
+def _membership_count(user_id: int, season: str) -> int:
+    """Return the total number of leagues the user belongs to in the given season.
+
+    Args:
+        user_id: ID of the user to check.
+        season: Season string in ``'20xx-xx'`` format.
+
+    Returns:
+        Integer count of memberships.
+    """
+    return (
+        LeagueMember.query
+        .join(League, League.id == LeagueMember.league_id)
+        .filter(
+            LeagueMember.user_id == user_id,
+            League.season == season,
+        )
+        .count()
+    )
+
+
 def _member_payload(member: LeagueMember, season: str, kicked_off: bool) -> dict:
     """Serialise a league member with prediction info.
 
@@ -74,7 +117,10 @@ def create_league():
         return jsonify({"error": "name must be 40 characters or fewer"}), 400
     if not season:
         return jsonify({"error": "season is required"}), 400
-
+    if _owned_count(user_id, season) >= 10:
+        return jsonify({"error": "You cannot own more than 10 leagues in a single season"}), 400
+    if _membership_count(user_id, season) >= 30:
+        return jsonify({"error": "You cannot be a member of more than 30 leagues in a single season"}), 400
     league = League(name=name, season=season, created_by=user_id)
     db.session.add(league)
     db.session.flush()  # populate league.id before creating the membership row
@@ -187,6 +233,9 @@ def join_league():
 
     if _get_membership(league.id, user_id) is not None:
         return jsonify({"error": "You are already a member of this league"}), 409
+
+    if _membership_count(user_id, league.season) >= 30:
+        return jsonify({"error": "You cannot be a member of more than 30 leagues in a single season"}), 400
 
     member = LeagueMember(league_id=league.id, user_id=user_id, role="member")
     db.session.add(member)
@@ -356,6 +405,9 @@ def transfer_ownership(league_id: int):
     new_membership = _get_membership(league_id, new_owner_id)
     if new_membership is None:
         return jsonify({"error": "Target user is not a member of this league"}), 404
+
+    if _owned_count(new_owner_id, league.season) >= 10:
+        return jsonify({"error": "That user already owns 10 leagues this season and cannot take ownership of another"}), 400
 
     membership.role = "member"
     new_membership.role = "owner"
