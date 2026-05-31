@@ -397,6 +397,9 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
                 <span className="text-white text-sm flex-1 truncate">
                   {member.name}
                   {isMe && <span className="text-teal-muted text-xs ml-1.5">(you)</span>}
+                  {member.role === 'owner' && (
+                    <span className="text-yellow-400/60 text-[10px] uppercase tracking-wider ml-1.5">owner</span>
+                  )}
                 </span>
 
                 {/* prediction status / score */}
@@ -419,11 +422,6 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
                   >
                     ✕
                   </button>
-                )}
-
-                {/* role badge */}
-                {member.role === 'owner' && (
-                  <span className="text-yellow-400/60 text-[10px] uppercase tracking-wider shrink-0">owner</span>
                 )}
               </div>
             )
