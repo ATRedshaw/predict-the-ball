@@ -194,6 +194,28 @@ def get_dashboard():
     }), 200
 
 
+@users_bp.get("/stats")
+def get_stats():
+    """Return public platform statistics.
+
+    No authentication required. Stats are computed on the fly from live data.
+
+    Returns:
+        200 with ``total_predicted_positions``, ``total_leagues``,
+        ``total_users``, and ``total_predictions`` keys.
+    """
+    total_predictions = UserPrediction.query.count()
+    total_leagues     = League.query.count()
+    total_users       = User.query.count()
+
+    return jsonify({
+        "total_predicted_positions": total_predictions * 20,
+        "total_predictions":         total_predictions,
+        "total_leagues":             total_leagues,
+        "total_users":               total_users,
+    }), 200
+
+
 @users_bp.get("/<int:user_id>")
 def get_user(user_id: int):
     """Return the public profile for the given user.
