@@ -254,12 +254,12 @@ function CompareTable({ comparison, actualUpdatedAt, projectionUpdatedAt }) {
       </div>
 
       <div className="space-y-1.5">
-        {comparison.map(({ team, actual_position, projected_mean_position, position_delta }, i) => {
+        {comparison.map(({ team, actual_position, projected_rank, projected_mean_position, position_delta }, i) => {
           const deltaColour =
-            position_delta == null  ? 'text-white/20' :
-            position_delta < -0.5   ? 'text-green-400' :
-            position_delta >  0.5   ? 'text-red-400'  :
-                                      'text-white/40'
+            position_delta == null ? 'text-white/20' :
+            position_delta < 0    ? 'text-green-400' :
+            position_delta > 0    ? 'text-red-400'   :
+                                    'text-white/40'
 
           return (
             <div
@@ -269,17 +269,20 @@ function CompareTable({ comparison, actualUpdatedAt, projectionUpdatedAt }) {
               <PositionBadge pos={actual_position} />
               <span className="text-white text-sm truncate">{team}</span>
               <span className="text-white/50 text-xs font-mono text-center">{actual_position}</span>
-              <span className="text-white/50 text-xs font-mono text-center">
-                {projected_mean_position != null ? fmt(projected_mean_position) : '—'}
-              </span>
+              <div className="flex flex-col items-center">
+                <span className="text-white/50 text-xs font-mono">{projected_rank ?? '—'}</span>
+                {projected_mean_position != null && (
+                  <span className="text-white/20 text-[10px] font-mono">{fmt(projected_mean_position)}</span>
+                )}
+              </div>
               <span className={`text-xs font-mono text-center ${deltaColour}`}>
                 {position_delta == null
                   ? '—'
                   : position_delta === 0
                   ? '0'
                   : position_delta > 0
-                  ? `+${fmt(position_delta, 1)}`
-                  : fmt(position_delta, 1)}
+                  ? `+${position_delta}`
+                  : position_delta}
               </span>
             </div>
           )
@@ -287,7 +290,7 @@ function CompareTable({ comparison, actualUpdatedAt, projectionUpdatedAt }) {
       </div>
 
       <p className="text-white/20 text-[10px] mt-3 text-center">
-        Δ = actual position − model projection. Positive means finishing lower than projected.
+        Model column shows projected rank (mean position in small text). Δ = actual − projected rank. Positive means finishing lower than the model expected.
       </p>
 
       <div className="mt-4 flex flex-wrap gap-4 justify-center text-[10px] text-white/30">

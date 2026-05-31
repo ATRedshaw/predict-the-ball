@@ -363,17 +363,23 @@ def compare_elo_vs_actual(season: str):
         return jsonify({"error": "No ELO projection found for this season"}), 404
 
     actual_pos = {row["team"]: row["position"] for row in actual_snap.standings}
+    # Projected rank = 1-based position in the mean_position-sorted projections list.
+    # Using rank rather than the raw mean avoids nonsensical deltas (e.g. actual 3rd
+    # vs mean 5.0 when that mean corresponds to 3rd place in the model's ordering).
+    proj_rank = {row["team"]: i + 1 for i, row in enumerate(proj_snap.projections)}
     proj_mean = {row["team"]: row["mean_position"] for row in proj_snap.projections}
 
     comparison = []
     for team, actual_position in sorted(actual_pos.items(), key=lambda x: x[1]):
+        rank = proj_rank.get(team)
         mean_pos = proj_mean.get(team)
         comparison.append({
             "team": team,
             "actual_position": actual_position,
+            "projected_rank": rank,
             "projected_mean_position": mean_pos,
             "position_delta": (
-                round(actual_position - mean_pos, 2) if mean_pos is not None else None
+                actual_position - rank if rank is not None else None
             ),
         })
 
