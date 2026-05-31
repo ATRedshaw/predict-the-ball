@@ -87,6 +87,7 @@ export default function SignUp() {
                       type="text"
                       autoComplete="given-name"
                       required
+                      maxLength={35}
                       value={firstName}
                       onChange={e => setFirstName(e.target.value.replace(/\b\w/g, c => c.toUpperCase()))}
                       className="w-full bg-jet rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none border border-transparent focus:border-teal transition-colors"
@@ -101,6 +102,7 @@ export default function SignUp() {
                       type="text"
                       autoComplete="family-name"
                       required
+                      maxLength={35}
                       value={lastName}
                       onChange={e => setLastName(e.target.value.replace(/\b\w/g, c => c.toUpperCase()))}
                       className="w-full bg-jet rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none border border-transparent focus:border-teal transition-colors"
