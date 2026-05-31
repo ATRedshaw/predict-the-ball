@@ -153,6 +153,29 @@ def get_season_teams(season: str) -> list[str]:
     return sorted(teams)
 
 
+def compute_prediction_score(predicted: list[str], actual_standings: list[dict]) -> int:
+    """Calculate a prediction score against the current actual standings.
+
+    Score is the sum of ``|predicted_position - actual_position|`` for every
+    team. Lower is better; a perfect prediction scores 0.
+
+    Args:
+        predicted: Ordered list of team names, index 0 = predicted champions.
+        actual_standings: List of standing dicts, each containing at minimum
+            ``'team'`` and ``'position'`` keys.
+
+    Returns:
+        Total error score as a non-negative integer.
+    """
+    actual_pos = {row["team"]: row["position"] for row in actual_standings}
+    total = 0
+    for i, team in enumerate(predicted):
+        actual = actual_pos.get(team)
+        if actual is not None:
+            total += abs((i + 1) - actual)
+    return total
+
+
 def calculate_epl_table(
     season: str,
     kicked_off: bool,
