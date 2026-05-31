@@ -125,6 +125,7 @@ export default function Predictions() {
   const [saving,    setSaving]      = useState(false)
   const [saveError, setSaveError]   = useState('')
   const [saveOk,    setSaveOk]      = useState(false)
+  const [actualStandings, setActualStandings] = useState(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -156,7 +157,15 @@ export default function Predictions() {
 
         if (kickedOff) {
           setPageState('in-season')
-          if (existingPrediction) setTeams(existingPrediction)
+          if (existingPrediction) {
+            setTeams(existingPrediction)
+            const actualData = await api.get(`/api/standings/${s}/actual/latest`).catch(() => null)
+            if (actualData?.standings) {
+              const lookup = {}
+              actualData.standings.forEach(({ position, team }) => { lookup[team] = position })
+              setActualStandings(lookup)
+            }
+          }
         } else {
           setPageState('pre-season')
           // Pre-populate with saved prediction, otherwise use alphabetical order
@@ -293,8 +302,44 @@ export default function Predictions() {
         </div>
       )}
 
-      {/* ── list ── */}
-      {teams.length > 0 && (
+      {/* ── in-season static table with actuals + delta ── */}
+      {pageState === 'in-season' && teams.length > 0 && (
+        <div className="bg-jet-dark rounded-2xl p-4">
+          <div className={`grid ${actualStandings ? 'grid-cols-[2rem_1fr_3rem_3rem]' : 'grid-cols-[2rem_1fr]'} gap-x-3 px-3 pb-2 mb-1`}>
+            <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">#</span>
+            <span className="text-white/30 text-[10px] uppercase tracking-widest">Team</span>
+            {actualStandings && <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Act.</span>}
+            {actualStandings && <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Δ</span>}
+          </div>
+          <div className="space-y-1">
+            {teams.map((name, idx) => {
+              const pos = idx + 1
+              const actualPos = actualStandings?.[name]
+              const delta = actualPos != null ? actualPos - pos : null
+              const posColour = pos === 1 ? 'text-yellow-400' : pos >= 18 ? 'text-red-400' : 'text-white/50'
+              const deltaColour = delta == null ? 'text-white/20' : delta < 0 ? 'text-green-400' : delta > 0 ? 'text-red-400' : 'text-white/30'
+              return (
+                <div key={name}>
+                  {pos === 18 && <ZoneDivider label="Relegation zone" lineColour="bg-red-400/30" />}
+                  <div className={`grid ${actualStandings ? 'grid-cols-[2rem_1fr_3rem_3rem]' : 'grid-cols-[2rem_1fr]'} gap-x-3 rounded-xl px-3 py-2.5 bg-jet items-center`}>
+                    <span className={`font-mono text-xs text-right shrink-0 ${posColour}`}>{pos}</span>
+                    <span className="text-white text-sm">{name}</span>
+                    {actualStandings && <span className="text-white/40 text-xs text-center font-mono">{actualPos ?? '—'}</span>}
+                    {actualStandings && (
+                      <span className={`text-xs text-center font-mono ${deltaColour}`}>
+                        {delta == null ? '—' : delta === 0 ? '0' : delta > 0 ? `+${delta}` : delta}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── pre-season draggable list ── */}
+      {pageState === 'pre-season' && teams.length > 0 && (
         <div className="bg-jet-dark rounded-2xl p-4">
           <DndContext
             sensors={sensors}
@@ -343,6 +388,12 @@ export default function Predictions() {
           {pageState === 'pre-season'
             ? 'You already have a prediction — reorder and update it before the deadline.'
             : 'This was your final prediction for the season.'}
+        </p>
+      )}
+
+      {pageState === 'in-season' && actualStandings && (
+        <p className="text-white/20 text-xs mt-2 text-center">
+          Δ = actual − predicted position. Negative means the team finished higher than predicted.
         </p>
       )}
     </div>

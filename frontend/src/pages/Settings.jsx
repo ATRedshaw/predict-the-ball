@@ -97,6 +97,17 @@ export default function Settings() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
+  async function handleLogout() {
+    try {
+      await api.post('/api/auth/logout', {})
+    } catch {
+      // Token may already be invalid — clear it regardless
+    }
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('first_name')
+    navigate('/')
+  }
+
   async function handleProfileSave(e) {
     e.preventDefault()
     setProfileMsg(null)
@@ -181,6 +192,16 @@ export default function Settings() {
 
   return (
     <div className="max-w-2xl mx-auto w-full py-4 space-y-4">
+
+      {/* ── Log out ── */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleLogout}
+          className="border border-white/20 text-white text-sm px-6 py-2.5 rounded-xl hover:bg-white/10 transition-colors"
+        >
+          Log out
+        </button>
+      </div>
 
       {/* ── Profile ── */}
       <Section

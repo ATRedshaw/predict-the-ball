@@ -551,12 +551,27 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
                   {symbol}
                 </span>
 
-                {/* name */}
-                <span className="text-white text-sm flex-1 truncate">
-                  {member.name}
-                  {isMe && <span className="text-teal-muted text-xs ml-1.5">(you)</span>}
+                {/* name + inline kick */}
+                <span className="text-white text-sm flex-1 truncate flex items-center gap-1.5 min-w-0">
+                  <span className="truncate">{member.name}</span>
+                  {isMe && <span className="text-teal-muted text-xs shrink-0">(you)</span>}
                   {member.role === 'owner' && (
-                    <span className="text-yellow-400/60 text-[10px] uppercase tracking-wider ml-1.5">owner</span>
+                    <span className="text-yellow-400/60 text-[10px] uppercase tracking-wider shrink-0">owner</span>
+                  )}
+                  {isOwner && !isMe && !isPastSeason && (
+                    <button
+                      onClick={e => { e.stopPropagation(); setKickTarget(member); setModal('confirm-kick') }}
+                      className="text-white/20 hover:text-red-400 transition-colors shrink-0 leading-none"
+                      aria-label={`Remove ${member.name}`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <path d="M10 11v6" />
+                        <path d="M14 11v6" />
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                      </svg>
+                    </button>
                   )}
                 </span>
 
@@ -571,17 +586,6 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
                   member.has_prediction
                     ? <Badge colour="teal">Predicted</Badge>
                     : <Badge colour="muted">Not yet</Badge>
-                )}
-
-                {/* owner kick button — hidden for past-season leagues */}
-                {isOwner && !isMe && !isPastSeason && (
-                  <button
-                    onClick={() => { setKickTarget(member); setModal('confirm-kick') }}
-                    className="text-white/20 hover:text-red-400 transition-colors text-xs ml-1 shrink-0"
-                    aria-label={`Remove ${member.name}`}
-                  >
-                    ✕
-                  </button>
                 )}
               </div>
             )
@@ -632,7 +636,7 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
       {/* past-season locked note */}
       {isPastSeason && (
         <p className="text-white/20 text-xs mt-4">
-          This league is from a previous season and is now read-only. To remove your data, delete your account from Settings.
+          This league is from a previous season and is now read-only.
         </p>
       )}
 
@@ -784,7 +788,7 @@ function LeagueList({ leagues, season, onSelect, onCreated, onJoined }) {
       {isPastSeason && (
         <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 mb-4">
           <p className="text-white/40 text-xs">
-            Leagues from the {filterSeason} season are view-only. You can still manage, leave, or delete them, but new members can't join.
+            Leagues from the {filterSeason} season are view-only. 
           </p>
         </div>
       )}
