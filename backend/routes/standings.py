@@ -219,6 +219,9 @@ def _serialize_projection(snapshot: EloProjection) -> dict:
 @jwt_required()
 def get_latest_elo(season: str):
     """Return the most recent ELO projection snapshot for the given season."""
+    if not has_season_kicked_off(season):
+        return jsonify({"error": "Projections are not available until the season kicks off"}), 403
+
     snapshot = (
         EloProjection.query
         .filter_by(season=season)
@@ -246,6 +249,9 @@ def get_elo_on_date(season: str):
         404 if no snapshot exists on or before the given date.
         400 if the date parameter is missing or unparseable.
     """
+    if not has_season_kicked_off(season):
+        return jsonify({"error": "Projections are not available until the season kicks off"}), 403
+
     raw = request.args.get("date", "").strip()
     if not raw:
         return jsonify({"error": "'date' query parameter is required (YYYY-MM-DD)"}), 400
@@ -275,6 +281,9 @@ def get_elo_on_date(season: str):
 @jwt_required()
 def get_elo_history(season: str):
     """Return all ELO projection snapshots for the season, newest first."""
+    if not has_season_kicked_off(season):
+        return jsonify({"error": "Projections are not available until the season kicks off"}), 403
+
     snapshots = (
         EloProjection.query
         .filter_by(season=season)
@@ -318,6 +327,9 @@ def compare_elo_vs_actual(season: str):
             ]
         }
     """
+    if not has_season_kicked_off(season):
+        return jsonify({"error": "Projections are not available until the season kicks off"}), 403
+
     raw_date = request.args.get("date", "").strip()
 
     if raw_date:

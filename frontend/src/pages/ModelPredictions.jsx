@@ -428,6 +428,17 @@ export default function ModelPredictions() {
       })
     : null
 
+  if (preseason) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <p className="text-white/60 text-sm">Projections unlock once the season kicks off.</p>
+          <p className="text-white/30 text-xs">Check back after the deadline to see where the model thinks each team will finish.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-4xl mx-auto w-full space-y-6 py-2">
 
@@ -443,14 +454,6 @@ export default function ModelPredictions() {
           </p>
         </div>
       </div>
-
-      {/* Pre-season notice */}
-      {preseason && (
-        <div className="bg-jet-dark/50 rounded-2xl px-5 py-3 border border-white/5 flex items-center gap-3">
-          <span className="text-teal-muted text-xs">⚠️ Pre-season — these projections are based on ELO ratings from prior seasons. No fixtures have been played yet.
-          </span>
-        </div>
-      )}
 
       {/* Tabs */}
       <div className="flex gap-1.5">
@@ -528,7 +531,7 @@ export default function ModelPredictions() {
           <div className="bg-jet-dark rounded-2xl p-5">
             <SectionHeading>Pin to a specific date</SectionHeading>
             <p className="text-white/30 text-xs mb-3">
-              By default, actual standings are compared against the very first projection of the season — the model's view before any ball was kicked.
+              By default, actual standings are compared against the very first projection of the season - the model's view before any ball was kicked.
               Select a date to compare both snapshots at that point in time instead.
             </p>
             <form onSubmit={handleCompareDateSubmit} className="flex items-center gap-3 flex-wrap">
@@ -567,8 +570,8 @@ export default function ModelPredictions() {
           <div className="bg-jet-dark rounded-2xl p-5">
             <SectionHeading>
               {compareDateInput
-                ? `Actual vs projection — on ${compareDateInput}`
-                : 'Actual vs pre-season projection'}
+                ? `Actual (current) vs projection (on ${compareDateInput})`
+                : 'Actual (Current) vs pre-season projection'}
             </SectionHeading>
             {compareFetching ? (
               <p className="text-white/30 text-sm text-center py-8">Loading…</p>

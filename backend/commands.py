@@ -75,6 +75,8 @@ def save_actual_standings_snapshot(season: str) -> None:
 
     if kicked_off:
         recalculate_prediction_scores(season, table)
+    else:
+        reset_prediction_scores(season)
 
     save_elo_projection_snapshot(season, deduction_dicts)
 
@@ -91,8 +93,7 @@ def save_elo_projection_snapshot(season: str, deductions: list[dict]) -> None:
         deductions: Active point deduction dicts for the season.
     """
     if not has_season_kicked_off(season):
-        print(f"Season {season} hasn't kicked off — skipping ELO projection.")
-        return
+        print(f"Season {season} hasn't kicked off — running pre-season ELO projection.")
 
     print(f"Running ELO simulation for {season}...")
     projections = simulate_elo_projection(season, n_simulations=10_000, deductions=deductions)
@@ -109,6 +110,22 @@ def save_elo_projection_snapshot(season: str, deductions: list[dict]) -> None:
     db.session.add(snapshot)
     db.session.commit()
     print(f"Saved ELO projection snapshot for {season} ({len(projections)} teams).")
+
+
+def reset_prediction_scores(season: str) -> None:
+    """Set ``current_points`` to ``None`` for every prediction in a season.
+
+    Called when the season has not yet kicked off, ensuring no stale scores
+    carry over if predictions are re-submitted or deductions change pre-season.
+
+    Args:
+        season: Season string in ``'20xx-xx'`` format.
+    """
+    predictions = UserPrediction.query.filter_by(season=season).all()
+    for prediction in predictions:
+        prediction.current_points = None
+    db.session.commit()
+    print(f"Reset points to null for {len(predictions)} prediction(s) in {season}.")
 
 
 def recalculate_prediction_scores(season: str, actual_table: list[dict]) -> None:
