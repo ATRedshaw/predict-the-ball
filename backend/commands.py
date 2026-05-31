@@ -19,8 +19,10 @@ from app import create_app
 from extensions import db
 from models.actual_standing import ActualStanding
 from models.points_deduction import PointsDeduction
+from models.user_prediction import UserPrediction
 from services.epl import (
     calculate_epl_table,
+    compute_prediction_score,
     get_latest_epl_season,
     has_season_kicked_off,
 )
@@ -68,6 +70,27 @@ def save_actual_standings_snapshot(season: str) -> None:
 
     status = "live" if kicked_off else "pre-season (alphabetical)"
     print(f"Saved {status} standings snapshot for {season} ({len(table)} teams).")
+
+    if kicked_off:
+        recalculate_prediction_scores(season, table)
+
+
+def recalculate_prediction_scores(season: str, actual_table: list[dict]) -> None:
+    """Recompute and persist ``current_points`` for every prediction in a season.
+
+    Called automatically after a new standings snapshot is saved. Iterates over
+    all ``UserPrediction`` rows for the season and updates ``current_points``
+    in place using the supplied actual table.
+
+    Args:
+        season: Season string in ``'20xx-xx'`` format.
+        actual_table: Current standings as returned by ``calculate_epl_table``.
+    """
+    predictions = UserPrediction.query.filter_by(season=season).all()
+    for prediction in predictions:
+        prediction.current_points = compute_prediction_score(prediction.standings, actual_table)
+    db.session.commit()
+    print(f"Recalculated points for {len(predictions)} prediction(s) in {season}.")
 
 
 if __name__ == "__main__":

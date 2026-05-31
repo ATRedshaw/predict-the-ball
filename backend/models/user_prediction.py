@@ -16,6 +16,9 @@ class UserPrediction(db.Model):
     season = db.Column(db.String(9), nullable=False)  # e.g. "2025/2026"
     # JSON array: ["Man City", "Arsenal", ..., "Wolves"]
     standings = db.Column(db.JSON, nullable=False)
+    # Null before the season deadline passes; once kicked off, the sum of
+    # |predicted_position - actual_position| across all 20 teams.
+    current_points = db.Column(db.Integer, nullable=True)
     submitted_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, onupdate=lambda: datetime.now(timezone.utc))
 
