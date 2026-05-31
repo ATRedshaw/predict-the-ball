@@ -39,11 +39,15 @@ export default function Settings() {
   const { setPageLoading } = usePageLoading()
 
   // Profile state
-  const [firstName, setFirstName] = useState('')
-  const [lastName,  setLastName]  = useState('')
-  const [email,     setEmail]     = useState('')
+  const [firstName,     setFirstName]     = useState('')
+  const [lastName,      setLastName]      = useState('')
+  const [email,         setEmail]         = useState('')
+  const [savedFirstName, setSavedFirstName] = useState('')
+  const [savedLastName,  setSavedLastName]  = useState('')
   const [profileMsg,  setProfileMsg]  = useState(null)   // { type: 'ok'|'err', text }
   const [profileBusy, setProfileBusy] = useState(false)
+
+  const profileChanged = firstName !== savedFirstName || lastName !== savedLastName
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState('')
@@ -68,6 +72,8 @@ export default function Settings() {
         setFirstName(me.first_name)
         setLastName(me.last_name)
         setEmail(me.email)
+        setSavedFirstName(me.first_name)
+        setSavedLastName(me.last_name)
       } catch {
         // If something goes wrong the fields just stay blank
       } finally {
@@ -84,12 +90,14 @@ export default function Settings() {
     setProfileMsg(null)
     setProfileBusy(true)
     try {
-      const updated = await api.put('/api/users/me', {
+      const updated = await api.put('/api/auth/me', {
         first_name: firstName,
         last_name:  lastName,
       })
       setFirstName(updated.first_name)
       setLastName(updated.last_name)
+      setSavedFirstName(updated.first_name)
+      setSavedLastName(updated.last_name)
       localStorage.setItem('first_name', updated.first_name)
       setProfileMsg({ type: 'ok', text: 'Profile updated.' })
     } catch (err) {
@@ -117,7 +125,7 @@ export default function Settings() {
       await api.post('/api/auth/reset-password', {
         current_password: currentPassword,
         new_password:     newPassword,
-      })
+      }, true)
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
@@ -140,7 +148,7 @@ export default function Settings() {
 
     setDeleteBusy(true)
     try {
-      await api.delete('/api/users/me')
+      await api.delete('/api/auth/me')
       localStorage.removeItem('access_token')
       localStorage.removeItem('first_name')
       navigate('/')
@@ -198,7 +206,7 @@ export default function Settings() {
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={profileBusy}
+              disabled={profileBusy || !profileChanged}
               className="bg-teal text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-jet transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {profileBusy ? 'Saving…' : 'Save changes'}
@@ -256,7 +264,7 @@ export default function Settings() {
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={passwordBusy}
+              disabled={passwordBusy || !currentPassword || !newPassword || !confirmPassword}
               className="bg-teal text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-jet transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {passwordBusy ? 'Updating…' : 'Update password'}
