@@ -147,10 +147,9 @@ function LeagueCard({ league, kickedOff }) {
       </div>
       {kickedOff && rank ? (
         <div className="text-right shrink-0 ml-4">
-          <p className="text-white font-bold text-sm leading-none">
-            {rank.rank}<span className="text-white/30 font-normal">/{rank.total}</span>
+          <p className="text-white/60 text-sm leading-none">
+            #{rank.rank}<span className="text-white/30">/{rank.total}</span>
           </p>
-          <p className="text-white/30 text-[10px] mt-0.5">rank</p>
         </div>
       ) : kickedOff ? (
         <span className="text-white/20 text-xs shrink-0 ml-4">no prediction</span>
@@ -167,6 +166,7 @@ function LeagueCard({ league, kickedOff }) {
 
 function HistoryRow({ entry, expanded, onToggle }) {
   const { season, prediction, leagues, global_rank } = entry
+  const hasPoints = prediction?.points != null
 
   return (
     <div className="border border-white/8 rounded-2xl overflow-hidden">
@@ -174,18 +174,18 @@ function HistoryRow({ entry, expanded, onToggle }) {
         onClick={onToggle}
         className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/3 transition-colors"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-white font-medium text-sm">{season}</span>
+          {hasPoints && (
+            <span className="text-white/40 text-xs font-mono">{prediction.points} pts</span>
+          )}
           {global_rank && (
-            <span className="text-teal text-xs">
-              #{global_rank.rank} of {global_rank.total}
+            <span className="bg-teal/15 text-teal text-[10px] font-medium px-2 py-0.5 rounded-full">
+              #{global_rank.rank}/{global_rank.total} overall
             </span>
           )}
-          {prediction?.points !== null && prediction?.points !== undefined && (
-            <span className="text-white/40 text-xs">{prediction.points} pts</span>
-          )}
         </div>
-        <span className={`text-white/30 text-xs transition-transform ${expanded ? 'rotate-180' : ''}`}>
+        <span className={`text-white/30 text-xs transition-transform shrink-0 ml-3 ${expanded ? 'rotate-180' : ''}`}>
           ▼
         </span>
       </button>
@@ -227,11 +227,19 @@ function HistoryRow({ entry, expanded, onToggle }) {
               <div className="space-y-2">
                 {leagues.map(l => (
                   <div key={l.id} className="flex items-center justify-between bg-jet rounded-xl px-4 py-2.5">
-                    <span className="text-white text-xs">{l.name}</span>
+                    <div>
+                      <span className="text-white text-xs">{l.name}</span>
+                      {l.role === 'owner' && (
+                        <span className="text-teal text-[10px] ml-1.5">owner</span>
+                      )}
+                    </div>
                     {l.rank ? (
-                      <span className="text-teal text-xs font-medium">
-                        #{l.rank.rank}/{l.rank.total}
-                      </span>
+                      <div className="text-right shrink-0 ml-4">
+                        <span className="text-white font-semibold text-sm leading-none">
+                          {l.rank.rank}
+                          <span className="text-white/30 font-normal">/{l.rank.total}</span>
+                        </span>
+                      </div>
                     ) : (
                       <span className="text-white/20 text-xs">—</span>
                     )}
@@ -331,12 +339,12 @@ export default function Home() {
         <StatCard
           label="Global rank"
           value={globalRank ? `#${globalRank.rank}` : '—'}
-          sub={globalRank ? `of ${globalRank.total} predictors` : kicked_off ? 'no prediction' : 'season not started'}
+          sub={globalRank ? `of ${globalRank.total} predictors` : current?.prediction?.points != null ? 'calculating…' : kicked_off ? 'no prediction' : 'season not started'}
         />
         <StatCard
           label="Your score"
           value={current?.prediction?.points ?? '—'}
-          sub={current?.prediction?.points !== null && current?.prediction?.points !== undefined ? 'lower is better' : kicked_off ? 'no prediction' : 'pending kick-off'}
+          sub={current?.prediction?.points != null ? 'lower is better' : kicked_off ? 'no prediction' : 'pending kick-off'}
         />
         <StatCard
           label="Leagues"
@@ -360,20 +368,22 @@ export default function Home() {
 
         {/* Leagues */}
         <div>
-          <div className="flex items-center justify-between mb-3">
+          <div className="mb-3">
             <SectionHeading>Current leagues</SectionHeading>
-            <Link
-              to="/leagues"
-              className="text-teal text-[10px] uppercase tracking-widest hover:text-teal-muted transition-colors"
-            >
-              Manage →
-            </Link>
           </div>
           {currentLeagues.length > 0 ? (
             <div className="space-y-2">
-              {currentLeagues.map(l => (
+              {currentLeagues.slice(0, 3).map(l => (
                 <LeagueCard key={l.id} league={l} kickedOff={kicked_off} />
               ))}
+              {currentLeagues.length > 3 && (
+                <Link
+                  to="/leagues"
+                  className="block text-center text-white/30 text-[10px] mt-1 hover:text-teal-muted transition-colors"
+                >
+                  + {currentLeagues.length - 3} more · view all leagues
+                </Link>
+              )}
             </div>
           ) : (
             <EmptyState

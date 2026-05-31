@@ -103,7 +103,7 @@ def _season_summary(season: str, user_id: int, kicked_off: bool) -> dict:
     for m in memberships:
         league = m.league
         member_count = LeagueMember.query.filter_by(league_id=league.id).count()
-        rank_info = _league_rank(league.id, user_id, season) if kicked_off else None
+        rank_info = _league_rank(league.id, user_id, season)
         leagues_payload.append({
             "id": league.id,
             "name": league.name,
@@ -113,7 +113,7 @@ def _season_summary(season: str, user_id: int, kicked_off: bool) -> dict:
             "rank": rank_info,
         })
 
-    global_rank = _global_rank(season, user_id) if kicked_off else None
+    global_rank = _global_rank(season, user_id)
 
     return {
         "prediction": prediction_payload,
@@ -134,7 +134,7 @@ def get_dashboard():
     Returns:
         200 with the dashboard payload, or 404 if the user does not exist.
     """
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = db.session.get(User, user_id)
     if not user:
         return jsonify({"error": "user not found"}), 404
