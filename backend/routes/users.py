@@ -149,6 +149,18 @@ def get_dashboard():
 
     current_payload = _season_summary(current_season, user_id, kicked_off) if current_season else None
 
+    # Average score across all scored predictions for the current season.
+    if current_season:
+        scored = [
+            p.current_points for p in
+            UserPrediction.query
+            .filter(UserPrediction.season == current_season, UserPrediction.current_points.isnot(None))
+            .all()
+        ]
+        avg_score = round(sum(scored) / len(scored), 1) if scored else None
+    else:
+        avg_score = None
+
     # Collect all seasons this user has touched, excluding the current one.
     prediction_seasons = {
         p.season for p in UserPrediction.query.filter_by(user_id=user_id).all()
@@ -176,6 +188,7 @@ def get_dashboard():
         "current_season": current_season,
         "kicked_off": kicked_off,
         "deadline": first_kickoff.isoformat() if first_kickoff else None,
+        "avg_score": avg_score,
         "current": current_payload,
         "history": history,
     }), 200

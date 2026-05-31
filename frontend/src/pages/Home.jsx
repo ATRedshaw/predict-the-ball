@@ -287,6 +287,7 @@ export default function Home() {
     current_season,
     kicked_off,
     deadline,
+    avg_score,
     current,
     history,
   } = data
@@ -341,7 +342,13 @@ export default function Home() {
         <StatCard
           label="Your score"
           value={current?.prediction?.points ?? '—'}
-          sub={current?.prediction?.points != null ? 'lower is better' : kicked_off ? 'no prediction' : 'pending kick-off'}
+          sub={
+            current?.prediction?.points != null && avg_score != null
+              ? `worldwide seasonal average: ${avg_score}`
+              : current?.prediction?.points != null
+              ? 'lower is better'
+              : kicked_off ? 'no prediction' : 'pending kick-off'
+          }
         />
         <StatCard
           label="Leagues"
