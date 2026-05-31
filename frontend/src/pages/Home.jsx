@@ -234,12 +234,9 @@ function HistoryRow({ entry, expanded, onToggle }) {
                       )}
                     </div>
                     {l.rank ? (
-                      <div className="text-right shrink-0 ml-4">
-                        <span className="text-white font-semibold text-sm leading-none">
-                          {l.rank.rank}
-                          <span className="text-white/30 font-normal">/{l.rank.total}</span>
-                        </span>
-                      </div>
+                      <span className="text-white/60 text-sm shrink-0 ml-4">
+                        #{l.rank.rank}<span className="text-white/30">/{l.rank.total}</span>
+                      </span>
                     ) : (
                       <span className="text-white/20 text-xs">—</span>
                     )}
