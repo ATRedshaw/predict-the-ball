@@ -26,8 +26,14 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
-    league_memberships = db.relationship("LeagueMember", back_populates="user", lazy="dynamic")
-    predictions = db.relationship("UserPrediction", back_populates="user", lazy="dynamic")
+    league_memberships = db.relationship(
+        "LeagueMember", back_populates="user", lazy="dynamic",
+        cascade="all, delete-orphan", passive_deletes=True,
+    )
+    predictions = db.relationship(
+        "UserPrediction", back_populates="user", lazy="dynamic",
+        cascade="all, delete-orphan", passive_deletes=True,
+    )
 
     def generate_verification_code(self) -> str:
         """Generate a fresh 6-digit verification code and store it with an expiry.
