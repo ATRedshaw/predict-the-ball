@@ -339,12 +339,8 @@ export default function ModelPredictions() {
         const { season: s } = await api.get('/api/standings/current-season')
         setSeason(s)
 
-        // Check whether the season has kicked off before attempting to fetch.
         const { kicked_off } = await api.get(`/api/standings/${s}/deadline`)
-        if (!kicked_off) {
-          setPreseason(true)
-          return
-        }
+        if (!kicked_off) setPreseason(true)
 
         try {
           const data = await api.get(`/api/standings/${s}/elo/latest`)
@@ -447,6 +443,14 @@ export default function ModelPredictions() {
           </p>
         </div>
       </div>
+
+      {/* Pre-season notice */}
+      {preseason && (
+        <div className="bg-jet-dark/50 rounded-2xl px-5 py-3 border border-white/5 flex items-center gap-3">
+          <span className="text-teal-muted text-xs">⚠️ Pre-season — these projections are based on ELO ratings from prior seasons. No fixtures have been played yet.
+          </span>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1.5">
