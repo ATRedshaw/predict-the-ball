@@ -278,6 +278,19 @@ function MemberPredictionView({ member, season, kickedOff, currentUserId, onBack
     }
   }
 
+  // Stats for the season currently being viewed (may be a past season).
+  const viewedSeasonStats = profile
+    ? (profile.current_season?.season === season
+        ? profile.current_season
+        : profile.history?.find(h => h.season === season) ?? null)
+    : null
+
+  // All seasons combined, newest first.
+  const allSeasons = [
+    ...(profile?.current_season ? [profile.current_season] : []),
+    ...(profile?.history ?? []),
+  ].sort((a, b) => b.season.localeCompare(a.season))
+
   return (
     <div className="max-w-2xl mx-auto w-full px-4 py-6">
       <button
@@ -304,24 +317,24 @@ function MemberPredictionView({ member, season, kickedOff, currentUserId, onBack
         </div>
       ) : (
         <>
-          {/* Season stats header — replaces the old single "Total score" row */}
-          {kickedOff && profile?.current_season && (
+          {/* Season stats header */}
+          {kickedOff && viewedSeasonStats && (
             <div className="bg-jet-dark rounded-2xl p-4 mb-4">
               <p className="text-teal-muted text-xs uppercase tracking-widest mb-3">{season}</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-jet rounded-xl px-4 py-3">
                   <p className="text-white/40 text-xs mb-1">Score</p>
                   <p className="text-white font-mono font-bold text-lg">
-                    {profile.current_season.score != null ? `${profile.current_season.score} pts` : '—'}
+                    {viewedSeasonStats.score != null ? `${viewedSeasonStats.score} pts` : '—'}
                   </p>
                 </div>
                 <div className="bg-jet rounded-xl px-4 py-3">
                   <p className="text-white/40 text-xs mb-1">Global rank</p>
                   <p className="text-white font-mono font-bold text-lg">
-                    {profile.current_season.global_rank ? `#${profile.current_season.global_rank.rank}` : '—'}
+                    {viewedSeasonStats.global_rank ? `#${viewedSeasonStats.global_rank.rank}` : '—'}
                   </p>
-                  {profile.current_season.global_rank && (
-                    <p className="text-white/30 text-xs">of {profile.current_season.global_rank.total}</p>
+                  {viewedSeasonStats.global_rank && (
+                    <p className="text-white/30 text-xs">of {viewedSeasonStats.global_rank.total}</p>
                   )}
                 </div>
               </div>
@@ -391,17 +404,23 @@ function MemberPredictionView({ member, season, kickedOff, currentUserId, onBack
             </>
           )}
 
-          {/* Previous seasons */}
-          {profile?.history?.length > 0 && (
+          {/* All seasons */}
+          {allSeasons.length > 0 && (
             <div className="bg-jet-dark rounded-2xl p-4 mt-4">
-              <p className="text-teal-muted text-xs uppercase tracking-widest mb-3">Previous seasons</p>
+              <p className="text-teal-muted text-xs uppercase tracking-widest mb-3">All seasons</p>
               <div className="space-y-2">
-                {profile.history.map(h => (
+                {allSeasons.map(h => (
                   <div
                     key={h.season}
-                    className="bg-jet rounded-xl px-4 py-3 flex items-center justify-between"
+                    className={`rounded-xl px-4 py-3 flex items-center justify-between ${
+                      h.season === season ? 'bg-teal/10 border border-teal/20' : 'bg-jet'
+                    }`}
                   >
-                    <span className="text-white/60 text-sm font-mono">{h.season}</span>
+                    <span className={`text-sm font-mono ${
+                      h.season === season ? 'text-white' : 'text-white/60'
+                    }`}>
+                      {h.season}
+                    </span>
                     <div className="flex items-center gap-3">
                       {h.global_rank && (
                         <span className="text-white/40 text-xs font-mono">

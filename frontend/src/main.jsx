@@ -13,6 +13,7 @@ import Home          from './pages/Home.jsx'
 import Predictions   from './pages/Predictions.jsx'
 import Leagues       from './pages/Leagues.jsx'
 import Settings      from './pages/Settings.jsx'
+import ModelPredictions from './pages/ModelPredictions.jsx'
 import NotFound       from './pages/NotFound.jsx'
 
 createRoot(document.getElementById('root')).render(
@@ -35,7 +36,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/dashboard"          element={<Home />} />
             <Route path="/predictions"        element={<Predictions />} />
             <Route path="/leagues"            element={<Leagues />} />
-            <Route path="/model-predictions"  element={<div />} />
+            <Route path="/model-predictions"  element={<ModelPredictions />} />
             <Route path="/settings"           element={<Settings />} />
           </Route>
 

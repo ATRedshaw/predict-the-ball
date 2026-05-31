@@ -140,7 +140,7 @@ function PredictionCard({ prediction, season, kickedOff, actualLookup }) {
 
       {!standings && !kickedOff && (
         <p className="text-white/30 text-xs">
-          Your full table will be revealed once the season kicks off.
+          A table snapshot will be visible once the season kicks off.
         </p>
       )}
     </div>
