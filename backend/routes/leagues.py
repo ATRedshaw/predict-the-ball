@@ -6,7 +6,7 @@ from models.league import League
 from models.league_member import LeagueMember
 from models.user import User
 from models.user_prediction import UserPrediction
-from services.epl import has_season_kicked_off
+from services.epl import has_season_kicked_off, get_latest_epl_season
 
 leagues_bp = Blueprint("leagues", __name__, url_prefix="/api/leagues")
 
@@ -231,6 +231,14 @@ def join_league():
     if league is None:
         return jsonify({"error": "Invalid invite code"}), 404
 
+    try:
+        current_season = get_latest_epl_season()
+    except FileNotFoundError:
+        current_season = None
+
+    if current_season and league.season != current_season:
+        return jsonify({"error": "This league is from a previous season and is no longer open to new members"}), 403
+
     if _get_membership(league.id, user_id) is not None:
         return jsonify({"error": "You are already a member of this league"}), 409
 
@@ -273,6 +281,14 @@ def leave_league(league_id: int):
     if membership is None:
         return jsonify({"error": "You are not a member of this league"}), 403
 
+    try:
+        current_season = get_latest_epl_season()
+    except FileNotFoundError:
+        current_season = None
+
+    if current_season and league.season != current_season:
+        return jsonify({"error": "Past-season leagues cannot be left. Delete your account to remove all league memberships."}), 403
+
     if membership.role == "owner":
         count = LeagueMember.query.filter_by(league_id=league_id).count()
         if count > 1:
@@ -306,6 +322,14 @@ def delete_league(league_id: int):
     membership = _get_membership(league_id, user_id)
     if membership is None or membership.role != "owner":
         return jsonify({"error": "Owner access required"}), 403
+
+    try:
+        current_season = get_latest_epl_season()
+    except FileNotFoundError:
+        current_season = None
+
+    if current_season and league.season != current_season:
+        return jsonify({"error": "Past-season leagues cannot be deleted here. Delete your account to remove all associated data."}), 403
 
     db.session.delete(league)
     db.session.commit()
@@ -360,6 +384,14 @@ def remove_member(league_id: int, target_user_id: int):
     if membership is None or membership.role != "owner":
         return jsonify({"error": "Owner access required"}), 403
 
+    try:
+        current_season = get_latest_epl_season()
+    except FileNotFoundError:
+        current_season = None
+
+    if current_season and league.season != current_season:
+        return jsonify({"error": "Members cannot be removed from past-season leagues."}), 403
+
     if target_user_id == user_id:
         return jsonify({"error": "Cannot remove yourself — use the leave endpoint instead"}), 400
 
@@ -394,6 +426,14 @@ def transfer_ownership(league_id: int):
     membership = _get_membership(league_id, user_id)
     if membership is None or membership.role != "owner":
         return jsonify({"error": "Owner access required"}), 403
+
+    try:
+        current_season = get_latest_epl_season()
+    except FileNotFoundError:
+        current_season = None
+
+    if current_season and league.season != current_season:
+        return jsonify({"error": "Ownership cannot be transferred for past-season leagues."}), 403
 
     data = request.get_json(silent=True) or {}
     new_owner_id = data.get("new_owner_id")

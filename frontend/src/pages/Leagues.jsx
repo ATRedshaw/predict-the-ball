@@ -232,16 +232,157 @@ function TransferOwnershipModal({ members, currentUserId, leagueId, onClose, onT
 }
 
 // ---------------------------------------------------------------------------
+// Member prediction view
+// ---------------------------------------------------------------------------
+
+function MemberPredictionView({ member, season, kickedOff, currentUserId, onBack }) {
+  const [prediction, setPrediction]       = useState(null)
+  const [actualStandings, setActual]      = useState(null)
+  const [loading, setLoading]             = useState(true)
+  const [error, setError]                 = useState('')
+
+  const isMe = member.user_id === currentUserId
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const predPromise = isMe
+          ? api.get(`/api/predictions/${season}`)
+          : api.get(`/api/predictions/${season}/user/${member.user_id}`)
+
+        const actualPromise = kickedOff
+          ? api.get(`/api/standings/${season}/actual/latest`)
+          : Promise.resolve(null)
+
+        const [pred, actual] = await Promise.all([predPromise, actualPromise])
+        setPrediction(pred)
+        setActual(actual)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [member.user_id, season, kickedOff, isMe])
+
+  // Build a lookup from team name → actual position
+  const actualPositionOf = {}
+  if (actualStandings?.standings) {
+    for (const row of actualStandings.standings) {
+      actualPositionOf[row.team] = row.position
+    }
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto w-full px-4 py-6">
+      <button
+        onClick={onBack}
+        className="text-teal-muted text-sm hover:text-white transition-colors mb-5 flex items-center gap-1"
+      >
+        ← Back to league
+      </button>
+
+      <div className="mb-6">
+        <h1 className="text-white text-2xl font-bold leading-tight">
+          {member.name}{isMe ? <span className="text-teal-muted text-base font-normal ml-2">(you)</span> : ''}
+        </h1>
+        <p className="text-teal-muted text-xs mt-1">{season} predictions</p>
+      </div>
+
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center py-20">
+          <span className="text-white/30 text-sm">Loading…</span>
+        </div>
+      ) : error ? (
+        <div className="bg-red-400/10 border border-red-400/20 rounded-2xl px-4 py-3">
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+      ) : !prediction ? (
+        <div className="bg-jet-dark rounded-2xl p-10 text-center">
+          <p className="text-white/40 text-sm">No prediction submitted.</p>
+        </div>
+      ) : (
+        <>
+          {kickedOff && member.current_points != null && (
+            <div className="bg-jet-dark rounded-2xl px-4 py-3 mb-4 flex items-center justify-between">
+              <span className="text-white/40 text-xs">Total score</span>
+              <span className="text-white font-mono font-bold">{member.current_points} pts</span>
+            </div>
+          )}
+
+          {!kickedOff && isMe && (
+            <div className="bg-teal/10 border border-teal/20 rounded-2xl px-4 py-3 mb-4">
+              <p className="text-teal text-xs">
+                The season hasn't started yet. Actual positions and deltas will appear once the first match is played.
+              </p>
+            </div>
+          )}
+
+          <div className="bg-jet-dark rounded-2xl p-4">
+            <div className="grid grid-cols-[2rem_1fr_3rem_3rem] gap-x-3 px-3 pb-2 mb-1">
+              <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">#</span>
+              <span className="text-white/30 text-[10px] uppercase tracking-widest">Team</span>
+              {kickedOff && <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Act.</span>}
+              {kickedOff && <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Δ</span>}
+            </div>
+            <div className="space-y-1">
+              {prediction.standings.map((team, i) => {
+                const predictedPos = i + 1
+                const actualPos    = actualPositionOf[team] ?? null
+                const delta        = actualPos != null ? actualPos - predictedPos : null
+
+                return (
+                  <div
+                    key={team}
+                    className="grid grid-cols-[2rem_1fr_3rem_3rem] gap-x-3 items-center rounded-xl px-3 py-2 bg-jet"
+                  >
+                    <span className="text-white/40 font-mono text-xs text-center">{predictedPos}</span>
+                    <span className="text-white text-sm truncate">{team}</span>
+                    {kickedOff && (
+                      <span className="text-white/50 font-mono text-xs text-center">
+                        {actualPos ?? '—'}
+                      </span>
+                    )}
+                    {kickedOff && (
+                      <span className={`font-mono text-xs text-center ${
+                        delta === null ? 'text-white/30'
+                        : delta === 0  ? 'text-teal'
+                        : delta < 0   ? 'text-green-400'
+                        : 'text-red-400'
+                      }`}>
+                        {delta === null ? '—' : delta === 0 ? '✓' : delta > 0 ? `+${delta}` : delta}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {kickedOff && (
+            <p className="text-white/20 text-xs mt-3 text-center">
+              Δ = actual − predicted position. Negative means the team finished higher than predicted.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // League detail view
 // ---------------------------------------------------------------------------
 
-function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
+function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDeleted }) {
   const [league, setLeague]           = useState(null)
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState('')
   const [actionError, setActionError] = useState('')
   const [modal, setModal]             = useState(null) // 'transfer' | 'confirm-leave' | 'confirm-delete' | 'confirm-kick'
   const [kickTarget, setKickTarget]   = useState(null)
+  const [viewingMember, setViewingMember] = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -256,9 +397,10 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
 
   useEffect(() => { load() }, [load])
 
-  const myMembership = league?.members.find(m => m.user_id === currentUserId)
-  const isOwner      = myMembership?.role === 'owner'
-  const memberCount  = league?.members.length ?? 0
+  const myMembership  = league?.members.find(m => m.user_id === currentUserId)
+  const isOwner       = myMembership?.role === 'owner'
+  const memberCount   = league?.members.length ?? 0
+  const isPastSeason  = league && currentSeason && league.season !== currentSeason
 
   async function handleLeave() {
     setActionError('')
@@ -321,6 +463,18 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
     displayRank: league.kicked_off && m.current_points != null ? i + 1 : null,
   }))
 
+  if (viewingMember) {
+    return (
+      <MemberPredictionView
+        member={viewingMember}
+        season={league.season}
+        kickedOff={league.kicked_off}
+        currentUserId={currentUserId}
+        onBack={() => setViewingMember(null)}
+      />
+    )
+  }
+
   return (
     <div className="max-w-2xl mx-auto w-full px-4 py-6">
 
@@ -339,9 +493,11 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
           <p className="text-teal-muted text-xs mt-1">{league.season} · {memberCount} member{memberCount !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {league.kicked_off
-            ? <Badge colour="red">Season live</Badge>
-            : <Badge colour="teal">Predictions open</Badge>
+          {isPastSeason
+            ? <Badge colour="muted">Season ended</Badge>
+            : league.kicked_off
+              ? <Badge colour="red">Season live</Badge>
+              : <Badge colour="teal">Predictions open</Badge>
           }
           {isOwner && <Badge colour="yellow">Owner</Badge>}
         </div>
@@ -381,12 +537,14 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
           {ranked.map((member, idx) => {
             const rank   = member.displayRank ?? idx + 1
             const { symbol, cls } = rankLabel(rank)
-            const isMe   = member.user_id === currentUserId
+            const isMe      = member.user_id === currentUserId
+            const canView   = league.kicked_off || isMe
 
             return (
               <div
                 key={member.user_id}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${isMe ? 'bg-teal/10 border border-teal/20' : 'bg-jet'}`}
+                onClick={canView ? () => setViewingMember(member) : undefined}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${isMe ? 'bg-teal/10 border border-teal/20' : 'bg-jet'} ${canView ? 'cursor-pointer hover:brightness-125 transition-[filter]' : ''}`}
               >
                 {/* rank */}
                 <span className={`font-mono text-sm w-6 text-center shrink-0 ${cls}`}>
@@ -397,21 +555,26 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
                 <span className="text-white text-sm flex-1 truncate">
                   {member.name}
                   {isMe && <span className="text-teal-muted text-xs ml-1.5">(you)</span>}
+                  {member.role === 'owner' && (
+                    <span className="text-yellow-400/60 text-[10px] uppercase tracking-wider ml-1.5">owner</span>
+                  )}
                 </span>
 
                 {/* prediction status / score */}
                 {league.kicked_off ? (
                   member.current_points != null
                     ? <span className="text-white font-mono text-sm font-bold shrink-0">{member.current_points} pts</span>
-                    : <span className="text-white/30 text-xs shrink-0 italic">No prediction</span>
+                    : member.has_prediction
+                      ? <span className="text-white/30 text-xs shrink-0 italic">Score pending</span>
+                      : <span className="text-white/30 text-xs shrink-0 italic">No prediction</span>
                 ) : (
                   member.has_prediction
                     ? <Badge colour="teal">Predicted</Badge>
                     : <Badge colour="muted">Not yet</Badge>
                 )}
 
-                {/* owner kick button */}
-                {isOwner && !isMe && (
+                {/* owner kick button — hidden for past-season leagues */}
+                {isOwner && !isMe && !isPastSeason && (
                   <button
                     onClick={() => { setKickTarget(member); setModal('confirm-kick') }}
                     className="text-white/20 hover:text-red-400 transition-colors text-xs ml-1 shrink-0"
@@ -419,11 +582,6 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
                   >
                     ✕
                   </button>
-                )}
-
-                {/* role badge */}
-                {member.role === 'owner' && (
-                  <span className="text-yellow-400/60 text-[10px] uppercase tracking-wider shrink-0">owner</span>
                 )}
               </div>
             )
@@ -434,8 +592,8 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
       {/* action error */}
       {actionError && <ErrorBanner message={actionError} />}
 
-      {/* owner actions */}
-      {isOwner && (
+      {/* owner actions — hidden for past-season leagues */}
+      {isOwner && !isPastSeason && (
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             onClick={() => setModal('transfer')}
@@ -452,8 +610,8 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
         </div>
       )}
 
-      {/* member leave */}
-      {!isOwner && (
+      {/* member leave — hidden for past-season leagues */}
+      {!isOwner && !isPastSeason && (
         <div className="mt-4">
           <button
             onClick={() => setModal('confirm-leave')}
@@ -465,9 +623,16 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
       )}
 
       {/* owner leave note */}
-      {isOwner && memberCount > 1 && (
+      {isOwner && !isPastSeason && memberCount > 1 && (
         <p className="text-white/20 text-xs mt-3">
           Transfer ownership before leaving, or delete the league.
+        </p>
+      )}
+
+      {/* past-season locked note */}
+      {isPastSeason && (
+        <p className="text-white/20 text-xs mt-4">
+          This league is from a previous season and is now read-only. To remove your data, delete your account from Settings.
         </p>
       )}
 
@@ -556,20 +721,40 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
 function LeagueList({ leagues, season, onSelect, onCreated, onJoined }) {
   const [modal, setModal] = useState(null) // 'create' | 'join'
 
+  // Build the ordered list of seasons present in the user's leagues, always
+  // putting the current season first even if the user has no leagues in it yet.
+  const availableSeasons = Array.from(
+    new Set([season, ...leagues.map(l => l.season)].filter(Boolean))
+  ).sort((a, b) => {
+    const yr = s => parseInt(s?.split('-')[0] ?? '0', 10)
+    return yr(b) - yr(a)
+  })
+
+  const [filterSeason, setFilterSeason] = useState(season)
+
+  // Keep the filter on the current season when the page first loads and season arrives.
+  const isPastSeason = filterSeason && filterSeason !== season
+
+  const visibleLeagues = filterSeason
+    ? leagues.filter(l => l.season === filterSeason)
+    : leagues
+
   return (
     <div className="max-w-2xl mx-auto w-full px-4 py-6">
-      <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
         <div>
           <h1 className="text-white text-2xl font-bold leading-tight">Leagues</h1>
           <p className="text-teal-muted text-xs mt-1">Compete with friends across the {season} season</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setModal('join')}
-            className="text-white/70 text-sm border border-white/10 px-4 py-2 rounded-xl hover:bg-white/5 transition-colors"
-          >
-            Join
-          </button>
+          {!isPastSeason && (
+            <button
+              onClick={() => setModal('join')}
+              className="text-white/70 text-sm border border-white/10 px-4 py-2 rounded-xl hover:bg-white/5 transition-colors"
+            >
+              Join
+            </button>
+          )}
           <button
             onClick={() => setModal('create')}
             className="bg-teal text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-jet transition-colors"
@@ -579,28 +764,55 @@ function LeagueList({ leagues, season, onSelect, onCreated, onJoined }) {
         </div>
       </div>
 
-      {leagues.length === 0 ? (
+      {/* Season filter — only shown when the user has leagues spanning multiple seasons */}
+      {availableSeasons.length > 1 && (
+        <div className="mb-5">
+          <select
+            value={filterSeason}
+            onChange={e => setFilterSeason(e.target.value)}
+            className="bg-jet border border-white/10 rounded-xl px-4 py-2 text-white text-xs focus:outline-none focus:border-teal/50 transition-colors"
+          >
+            {availableSeasons.map(s => (
+              <option key={s} value={s}>
+                {s}{s === season ? ' (current)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {isPastSeason && (
+        <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 mb-4">
+          <p className="text-white/40 text-xs">
+            Leagues from the {filterSeason} season are view-only. You can still manage, leave, or delete them, but new members can't join.
+          </p>
+        </div>
+      )}
+
+      {visibleLeagues.length === 0 ? (
         <div className="bg-jet-dark rounded-2xl p-10 text-center">
-          <p className="text-white/40 text-sm mb-1">You're not in any leagues yet.</p>
+          <p className="text-white/40 text-sm mb-1">No leagues for this season yet.</p>
           <p className="text-white/20 text-xs">Create one or ask a friend for their invite code.</p>
-          <div className="flex justify-center gap-3 mt-6">
-            <button
-              onClick={() => setModal('join')}
-              className="text-white/60 text-sm border border-white/10 px-5 py-2.5 rounded-xl hover:bg-white/5 transition-colors"
-            >
-              Join with a code
-            </button>
-            <button
-              onClick={() => setModal('create')}
-              className="bg-teal text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-jet transition-colors"
-            >
-              Create a league
-            </button>
-          </div>
+          {!isPastSeason && (
+            <div className="flex justify-center gap-3 mt-6">
+              <button
+                onClick={() => setModal('join')}
+                className="text-white/60 text-sm border border-white/10 px-5 py-2.5 rounded-xl hover:bg-white/5 transition-colors"
+              >
+                Join with a code
+              </button>
+              <button
+                onClick={() => setModal('create')}
+                className="bg-teal text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-jet transition-colors"
+              >
+                Create a league
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
-          {leagues.map(league => (
+          {visibleLeagues.map(league => (
             <button
               key={league.id}
               onClick={() => onSelect(league.id)}
@@ -612,6 +824,7 @@ function LeagueList({ leagues, season, onSelect, onCreated, onJoined }) {
                   <p className="text-white/40 text-xs mt-0.5">{league.season} · {league.member_count} member{league.member_count !== 1 ? 's' : ''}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  {league.season !== season && <Badge colour="muted">Past season</Badge>}
                   {league.role === 'owner' && <Badge colour="yellow">Owner</Badge>}
                   <span className="text-white/20 group-hover:text-white/50 transition-colors text-sm">→</span>
                 </div>
@@ -726,6 +939,7 @@ export default function Leagues() {
       <LeagueDetail
         leagueId={selectedId}
         currentUserId={currentUserId}
+        currentSeason={season}
         onBack={handleBack}
         onDeleted={handleDeleted}
       />
