@@ -531,5 +531,12 @@ def simulate_elo_projection(
             "finish_probabilities": finish_probs,
         })
 
-    results.sort(key=lambda r: r["mean_position"])
+    def _sort_key(r: dict) -> tuple:
+        fp = r["finish_probabilities"]
+        # Primary: mean position ascending.
+        # Tiebreaker: probability of 1st descending, then 2nd descending, etc.
+        # Negating each probability makes higher values sort first.
+        return (r["mean_position"],) + tuple(-fp.get(str(p), 0.0) for p in range(1, n_teams + 1))
+
+    results.sort(key=_sort_key)
     return results

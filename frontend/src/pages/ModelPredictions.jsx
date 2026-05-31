@@ -312,19 +312,20 @@ function CompareTable({ comparison, actualUpdatedAt, projectionUpdatedAt }) {
 export default function ModelPredictions() {
   const { setPageLoading } = usePageLoading()
 
-  const [season, setSeason]       = useState(null)
-  const [tab, setTab]             = useState('projections') // 'projections' | 'compare'
-  const [error, setError]         = useState(null)
+  const [season, setSeason]           = useState(null)
+  const [tab, setTab]                 = useState('projections') // 'projections' | 'compare'
+  const [error, setError]             = useState(null)
+  const [preseason, setPreseason]     = useState(false)
 
   // Projections tab state
-  const [projData, setProjData]       = useState(null)
+  const [projData, setProjData]           = useState(null)
   const [projUpdatedAt, setProjUpdatedAt] = useState(null)
-  const [dateInput, setDateInput]     = useState('')
-  const [dateError, setDateError]     = useState(null)
-  const [dateFetching, setDateFetching] = useState(false)
+  const [dateInput, setDateInput]         = useState('')
+  const [dateError, setDateError]         = useState(null)
+  const [dateFetching, setDateFetching]   = useState(false)
 
   // Compare tab state
-  const [compareData, setCompareData] = useState(null)
+  const [compareData, setCompareData]           = useState(null)
   const [compareDateInput, setCompareDateInput] = useState('')
   const [compareFetching, setCompareFetching]   = useState(false)
   const [compareError, setCompareError]         = useState(null)
@@ -337,10 +338,27 @@ export default function ModelPredictions() {
       try {
         const { season: s } = await api.get('/api/standings/current-season')
         setSeason(s)
-        const data = await api.get(`/api/standings/${s}/elo/latest`)
-        setProjData(data.projections)
-        setProjUpdatedAt(data.updated_at)
-        setDateInput(toDateInput(data.updated_at))
+
+        // Check whether the season has kicked off before attempting to fetch.
+        const { kicked_off } = await api.get(`/api/standings/${s}/deadline`)
+        if (!kicked_off) {
+          setPreseason(true)
+          return
+        }
+
+        try {
+          const data = await api.get(`/api/standings/${s}/elo/latest`)
+          setProjData(data.projections)
+          setProjUpdatedAt(data.updated_at)
+          setDateInput(toDateInput(data.updated_at))
+        } catch (projErr) {
+          // 404 = no projection run yet — surface as a soft empty state, not a crash.
+          if (projErr.message?.includes('404') || projErr.message?.toLowerCase().includes('no elo')) {
+            setProjData([])
+          } else {
+            throw projErr
+          }
+        }
       } catch (err) {
         setError(err.message)
       } finally {
