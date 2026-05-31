@@ -77,6 +77,8 @@ def register():
 
     if not first_name or not last_name or not email or not password:
         return jsonify({"error": "first_name, last_name, email and password are required"}), 400
+    if len(first_name) > 35 or len(last_name) > 35:
+        return jsonify({"error": "first_name and last_name must be 35 characters or fewer"}), 400
     if len(password) < 8:
         return jsonify({"error": "password must be at least 8 characters"}), 400
     if User.query.filter_by(email=email).first():
