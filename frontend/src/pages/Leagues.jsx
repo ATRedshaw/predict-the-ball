@@ -235,7 +235,7 @@ function TransferOwnershipModal({ members, currentUserId, leagueId, onClose, onT
 // League detail view
 // ---------------------------------------------------------------------------
 
-function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
+function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDeleted }) {
   const [league, setLeague]           = useState(null)
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState('')
@@ -256,9 +256,10 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
 
   useEffect(() => { load() }, [load])
 
-  const myMembership = league?.members.find(m => m.user_id === currentUserId)
-  const isOwner      = myMembership?.role === 'owner'
-  const memberCount  = league?.members.length ?? 0
+  const myMembership  = league?.members.find(m => m.user_id === currentUserId)
+  const isOwner       = myMembership?.role === 'owner'
+  const memberCount   = league?.members.length ?? 0
+  const isPastSeason  = league && currentSeason && league.season !== currentSeason
 
   async function handleLeave() {
     setActionError('')
@@ -339,9 +340,11 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
           <p className="text-teal-muted text-xs mt-1">{league.season} · {memberCount} member{memberCount !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {league.kicked_off
-            ? <Badge colour="red">Season live</Badge>
-            : <Badge colour="teal">Predictions open</Badge>
+          {isPastSeason
+            ? <Badge colour="muted">Season ended</Badge>
+            : league.kicked_off
+              ? <Badge colour="red">Season live</Badge>
+              : <Badge colour="teal">Predictions open</Badge>
           }
           {isOwner && <Badge colour="yellow">Owner</Badge>}
         </div>
@@ -413,8 +416,8 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
                     : <Badge colour="muted">Not yet</Badge>
                 )}
 
-                {/* owner kick button */}
-                {isOwner && !isMe && (
+                {/* owner kick button — hidden for past-season leagues */}
+                {isOwner && !isMe && !isPastSeason && (
                   <button
                     onClick={() => { setKickTarget(member); setModal('confirm-kick') }}
                     className="text-white/20 hover:text-red-400 transition-colors text-xs ml-1 shrink-0"
@@ -432,8 +435,8 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
       {/* action error */}
       {actionError && <ErrorBanner message={actionError} />}
 
-      {/* owner actions */}
-      {isOwner && (
+      {/* owner actions — hidden for past-season leagues */}
+      {isOwner && !isPastSeason && (
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             onClick={() => setModal('transfer')}
@@ -450,8 +453,8 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
         </div>
       )}
 
-      {/* member leave */}
-      {!isOwner && (
+      {/* member leave — hidden for past-season leagues */}
+      {!isOwner && !isPastSeason && (
         <div className="mt-4">
           <button
             onClick={() => setModal('confirm-leave')}
@@ -463,9 +466,16 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
       )}
 
       {/* owner leave note */}
-      {isOwner && memberCount > 1 && (
+      {isOwner && !isPastSeason && memberCount > 1 && (
         <p className="text-white/20 text-xs mt-3">
           Transfer ownership before leaving, or delete the league.
+        </p>
+      )}
+
+      {/* past-season locked note */}
+      {isPastSeason && (
+        <p className="text-white/20 text-xs mt-4">
+          This league is from a previous season and is now read-only. To remove your data, delete your account from Settings.
         </p>
       )}
 
@@ -772,6 +782,7 @@ export default function Leagues() {
       <LeagueDetail
         leagueId={selectedId}
         currentUserId={currentUserId}
+        currentSeason={season}
         onBack={handleBack}
         onDeleted={handleDeleted}
       />
