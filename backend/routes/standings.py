@@ -1,8 +1,11 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from datetime import date, datetime, timezone
+
 from extensions import db
 from models.actual_standing import ActualStanding
+from models.elo_projection import EloProjection
 from models.points_deduction import PointsDeduction
 from models.user import User
 from services.epl import get_latest_epl_season, has_season_kicked_off, get_first_kickoff, get_season_teams
@@ -48,6 +51,7 @@ def get_latest_actual(season: str):
 
 
 @standings_bp.get("/<string:season>/actual/history")
+@jwt_required()
 def get_actual_history(season: str):
     """Return all actual table snapshots for the given season, newest first."""
     snapshots = (
@@ -191,25 +195,197 @@ def get_season_team_list(season: str):
 
 
 # ---------------------------------------------------------------------------
-# ELO projections (stubs — to be implemented)
+# ELO projections
 # ---------------------------------------------------------------------------
 
+def _serialize_projection(snapshot: EloProjection) -> dict:
+    """Serialise an EloProjection row to a JSON-safe dict.
+
+    Args:
+        snapshot: ORM instance to serialise.
+
+    Returns:
+        Dict with ``id``, ``season``, ``updated_at``, and ``projections``.
+    """
+    return {
+        "id": snapshot.id,
+        "season": snapshot.season,
+        "updated_at": snapshot.updated_at.isoformat() + "Z",
+        "projections": snapshot.projections,
+    }
+
+
 @standings_bp.get("/<string:season>/elo/latest")
+@jwt_required()
 def get_latest_elo(season: str):
-    """Return the most recent ELO-projected final standings for the given season."""
-    pass
+    """Return the most recent ELO projection snapshot for the given season."""
+    snapshot = (
+        EloProjection.query
+        .filter_by(season=season)
+        .order_by(EloProjection.updated_at.desc())
+        .first()
+    )
+    if snapshot is None:
+        return jsonify({"error": "No ELO projection found for this season"}), 404
+
+    return jsonify(_serialize_projection(snapshot))
 
 
-@standings_bp.get("/<string:season>/elo/<int:gameweek>")
-def get_elo_by_gameweek(season: str, gameweek: int):
-    """Return the ELO projection snapshot for a specific gameweek."""
-    pass
+@standings_bp.get("/<string:season>/elo/on")
+@jwt_required()
+def get_elo_on_date(season: str):
+    """Return the most recent ELO projection snapshot produced on or before a given date.
+
+    The date is supplied as the ``date`` query parameter in ``YYYY-MM-DD`` format.
+    When multiple snapshots exist on the same day the latest one (by time) is used.
+
+    Query parameters:
+        date (str): Target date in ``YYYY-MM-DD`` format.
+
+    Returns:
+        404 if no snapshot exists on or before the given date.
+        400 if the date parameter is missing or unparseable.
+    """
+    raw = request.args.get("date", "").strip()
+    if not raw:
+        return jsonify({"error": "'date' query parameter is required (YYYY-MM-DD)"}), 400
+
+    try:
+        target = datetime(
+            *[int(p) for p in raw.split("-")],
+            hour=23, minute=59, second=59,
+            tzinfo=timezone.utc,
+        )
+    except (ValueError, TypeError):
+        return jsonify({"error": f"Invalid date '{raw}' — expected YYYY-MM-DD"}), 400
+
+    snapshot = (
+        EloProjection.query
+        .filter(EloProjection.season == season, EloProjection.updated_at <= target)
+        .order_by(EloProjection.updated_at.desc())
+        .first()
+    )
+    if snapshot is None:
+        return jsonify({"error": f"No ELO projection found for {season} on or before {raw}"}), 404
+
+    return jsonify(_serialize_projection(snapshot))
 
 
-@standings_bp.get("/<string:season>/compare")
+@standings_bp.get("/<string:season>/elo/history")
+@jwt_required()
+def get_elo_history(season: str):
+    """Return all ELO projection snapshots for the season, newest first."""
+    snapshots = (
+        EloProjection.query
+        .filter_by(season=season)
+        .order_by(EloProjection.updated_at.desc())
+        .all()
+    )
+    return jsonify([_serialize_projection(s) for s in snapshots])
+
+
+@standings_bp.get("/<string:season>/elo/compare")
+@jwt_required()
 def compare_elo_vs_actual(season: str):
+    """Compare the current actual table against ELO projections.
+
+    By default compares the latest actual standings against the very first
+    ELO projection ever produced for the season (i.e. what the model thought
+    before any results came in).  Pass a ``date`` query parameter
+    (``YYYY-MM-DD``) to instead use the most recent projection on or before
+    that date alongside the most recent actual standings on or before that date.
+
+    Query parameters:
+        date (str, optional): ``YYYY-MM-DD`` — pin both snapshots to a
+            specific point in time.  Defaults to the current moment.
+
+    Response shape:
+
+    .. code-block:: json
+
+        {
+            "season": "2026-27",
+            "actual": { "updated_at": "...", "standings": [...] },
+            "projection": { "updated_at": "...", "projections": [...] },
+            "comparison": [
+                {
+                    "team": "Arsenal",
+                    "actual_position": 2,
+                    "projected_mean_position": 1.8,
+                    "position_delta": -0.2
+                },
+                ...
+            ]
+        }
     """
-    Return a side-by-side comparison of the current actual table and the
-    pre-deadline ELO projection (gameweek 0 snapshot) for the given season.
-    """
-    pass
+    raw_date = request.args.get("date", "").strip()
+
+    if raw_date:
+        try:
+            cutoff = datetime(
+                *[int(p) for p in raw_date.split("-")],
+                hour=23, minute=59, second=59,
+                tzinfo=timezone.utc,
+            )
+        except (ValueError, TypeError):
+            return jsonify({"error": f"Invalid date '{raw_date}' — expected YYYY-MM-DD"}), 400
+
+        actual_snap = (
+            ActualStanding.query
+            .filter(ActualStanding.season == season, ActualStanding.updated_at <= cutoff)
+            .order_by(ActualStanding.updated_at.desc())
+            .first()
+        )
+        proj_snap = (
+            EloProjection.query
+            .filter(EloProjection.season == season, EloProjection.updated_at <= cutoff)
+            .order_by(EloProjection.updated_at.desc())
+            .first()
+        )
+    else:
+        actual_snap = (
+            ActualStanding.query
+            .filter_by(season=season)
+            .order_by(ActualStanding.updated_at.desc())
+            .first()
+        )
+        # First-ever projection for the season — baseline before any results.
+        proj_snap = (
+            EloProjection.query
+            .filter_by(season=season)
+            .order_by(EloProjection.updated_at.asc())
+            .first()
+        )
+
+    if actual_snap is None:
+        return jsonify({"error": "No actual standings found for this season"}), 404
+    if proj_snap is None:
+        return jsonify({"error": "No ELO projection found for this season"}), 404
+
+    actual_pos = {row["team"]: row["position"] for row in actual_snap.standings}
+    proj_mean = {row["team"]: row["mean_position"] for row in proj_snap.projections}
+
+    comparison = []
+    for team, actual_position in sorted(actual_pos.items(), key=lambda x: x[1]):
+        mean_pos = proj_mean.get(team)
+        comparison.append({
+            "team": team,
+            "actual_position": actual_position,
+            "projected_mean_position": mean_pos,
+            "position_delta": (
+                round(actual_position - mean_pos, 2) if mean_pos is not None else None
+            ),
+        })
+
+    return jsonify({
+        "season": season,
+        "actual": {
+            "updated_at": actual_snap.updated_at.isoformat() + "Z",
+            "standings": actual_snap.standings,
+        },
+        "projection": {
+            "updated_at": proj_snap.updated_at.isoformat() + "Z",
+            "projections": proj_snap.projections,
+        },
+        "comparison": comparison,
+    })
