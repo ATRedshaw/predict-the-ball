@@ -52,7 +52,7 @@ export default function SignUp() {
       localStorage.setItem('access_token', data.access_token)
       const me = await api.get('/api/auth/me')
       localStorage.setItem('first_name', me.first_name)
-      navigate('/home')
+      navigate('/dashboard')
     } catch (err) {
       setError(err.message)
     } finally {

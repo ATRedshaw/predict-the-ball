@@ -8,6 +8,9 @@ function App() {
   const [season,    setSeason]    = useState(null)
   const [standings, setStandings] = useState([])
   const [updatedAt, setUpdatedAt] = useState(null)
+  const [stats,     setStats]     = useState(null)
+
+  const isLoggedIn = !!localStorage.getItem('access_token')
 
   useLayoutEffect(() => {
     setPageLoading(true)
@@ -16,8 +19,12 @@ function App() {
   useEffect(() => {
     async function load() {
       try {
-        const { season: s } = await api.get('/api/standings/current-season')
+        const [{ season: s }, platformStats] = await Promise.all([
+          api.get('/api/standings/current-season'),
+          api.get('/api/users/stats'),
+        ])
         setSeason(s)
+        setStats(platformStats)
         const table = await api.get(`/api/standings/${s}/actual/latest`)
         setStandings(table.standings)
         setUpdatedAt(table.updated_at)
@@ -36,6 +43,13 @@ function App() {
         day: 'numeric', month: 'short',
       })
     : null
+
+  function fmtNum(n) {
+    if (n == null) return '—'
+    if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`
+    return n.toString()
+  }
+
   return (
     <>
       {/* ── Bento grid ── */}
@@ -61,12 +75,20 @@ function App() {
           </div>
 
           <div className="relative z-10 flex gap-3 mt-8">
-            <Link to="/signup" className="bg-white text-jet font-semibold text-sm px-6 py-3 rounded-xl hover:bg-bone transition-colors">
-              Get started
-            </Link>
-            <button className="border border-white/30 text-white text-sm px-6 py-3 rounded-xl hover:bg-white/10 transition-colors">
-              How it works
-            </button>
+            {isLoggedIn ? (
+              <Link to="/dashboard" className="bg-white text-jet font-semibold text-sm px-6 py-3 rounded-xl hover:bg-bone transition-colors">
+                Go to dashboard
+              </Link>
+            ) : (
+              <>
+                <Link to="/signup" className="bg-white text-jet font-semibold text-sm px-6 py-3 rounded-xl hover:bg-bone transition-colors">
+                  Get started
+                </Link>
+                <button className="border border-white/30 text-white text-sm px-6 py-3 rounded-xl hover:bg-white/10 transition-colors">
+                  How it works
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -154,9 +176,10 @@ function App() {
           <h2 className="text-jet text-xl font-bold mt-2 mb-4 leading-snug">Compete with whoever you like</h2>
           <div className="space-y-2">
             {[
-              { name: 'The Office Draft',   members: 8      },
+              { name: 'Weekend Warriors',   members: 2      },
+              { name: 'Family League',       members: 5      },
               { name: 'Sunday League Boys', members: 12     },
-              { name: 'Global Public',      members: '1.4k' },
+              { name: 'The Office Draft',   members: 48      },
             ].map(({ name, members }) => (
               <div key={name} className="flex items-center justify-between bg-white/50 rounded-xl px-4 py-3">
                 <span className="text-jet text-sm font-medium">{name}</span>
@@ -164,16 +187,14 @@ function App() {
               </div>
             ))}
           </div>
-          <button className="mt-4 w-full bg-teal text-white text-sm py-2.5 rounded-xl hover:bg-jet transition-colors">
-            Create a league
-          </button>
         </div>
 
         {/* Stats strip — full width */}
         <div className="col-span-12 bg-jet-dark rounded-2xl px-6 py-5 flex flex-col md:flex-row items-center justify-between gap-4">
           {[
-            { value: '12,000+', label: 'Predictions made' },
-            { value: '340',     label: 'Active leagues'   }
+            { value: fmtNum(stats?.total_predicted_positions), label: 'Positions predicted' },
+            { value: fmtNum(stats?.total_leagues),             label: 'Leagues contested'     },
+            { value: fmtNum(stats?.total_users),               label: 'Players signed up'   },
           ].map(({ value, label }) => (
             <div key={label} className="text-center flex-1">
               <p className="text-white text-2xl font-bold">{value}</p>
@@ -183,15 +204,27 @@ function App() {
         </div>
 
         {/* CTA — full width */}
-        <div className="col-span-12 bg-teal rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div>
-            <h2 className="text-white text-2xl font-bold">Ready to make your call?</h2>
-            <p className="text-mist text-sm mt-1 opacity-80">Predictions lock when the season starts. Get yours in early.</p>
+        {isLoggedIn ? (
+          <div className="col-span-12 bg-teal rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div>
+              <h2 className="text-white text-2xl font-bold">Your dashboard is waiting.</h2>
+              <p className="text-mist text-sm mt-1 opacity-80">Check your predictions, league standings, and how the model thinks the season will unfold.</p>
+            </div>
+            <Link to="/dashboard" className="bg-white text-jet font-semibold px-8 py-3 rounded-xl hover:bg-bone transition-colors whitespace-nowrap">
+              Go to dashboard
+            </Link>
           </div>
-          <Link to="/signup" className="bg-white text-jet font-semibold px-8 py-3 rounded-xl hover:bg-bone transition-colors whitespace-nowrap">
-            Create free account
-          </Link>
-        </div>
+        ) : (
+          <div className="col-span-12 bg-teal rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div>
+              <h2 className="text-white text-2xl font-bold">Ready to make your call?</h2>
+              <p className="text-mist text-sm mt-1 opacity-80">Predictions lock when the season starts. Get yours in early.</p>
+            </div>
+            <Link to="/signup" className="bg-white text-jet font-semibold px-8 py-3 rounded-xl hover:bg-bone transition-colors whitespace-nowrap">
+              Create free account
+            </Link>
+          </div>
+        )}
 
       </div>
     </>

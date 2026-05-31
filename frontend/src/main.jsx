@@ -20,9 +20,11 @@ createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
+          {/* Public */}
+          <Route path="/" element={<App />} />
+
           {/* Unauthenticated only */}
           <Route element={<GuestRoute />}>
-            <Route path="/"       element={<App />}    />
             <Route path="/login"           element={<Login />}          />
             <Route path="/signup"          element={<SignUp />}         />
             <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -30,7 +32,7 @@ createRoot(document.getElementById('root')).render(
 
           {/* Authenticated only */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/home"               element={<Home />} />
+            <Route path="/dashboard"          element={<Home />} />
             <Route path="/predictions"        element={<Predictions />} />
             <Route path="/leagues"            element={<Leagues />} />
             <Route path="/model-predictions"  element={<div />} />

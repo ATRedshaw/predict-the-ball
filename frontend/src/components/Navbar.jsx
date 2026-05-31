@@ -13,7 +13,7 @@ export default function Navbar({ isLoggedIn = false, username = '', activePage =
   const [menuOpen, setMenuOpen] = useState(false)
 
   const loggedInLinks = [
-    { key: 'home',               label: 'Home'              },
+    { key: 'dashboard',          label: 'Dashboard'         },
     { key: 'predictions',        label: 'Predictions'       },
     { key: 'leagues',            label: 'Leagues'           },
     { key: 'model-predictions',  label: 'Model Predictions' },
@@ -23,12 +23,12 @@ export default function Navbar({ isLoggedIn = false, username = '', activePage =
     <nav className="flex items-center justify-between mb-6 relative">
 
       {/* Logo */}
-      <div className="flex items-center gap-2">
+      <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
         <div className="w-7 h-7 rounded-md bg-teal flex items-center justify-center">
           <span className="text-white text-xs font-bold">⚽</span>
         </div>
         <span className="text-white font-semibold tracking-tight text-lg">PredictTheBall</span>
-      </div>
+      </Link>
 
       {/* Desktop nav */}
       <div className="hidden md:flex items-center gap-3">

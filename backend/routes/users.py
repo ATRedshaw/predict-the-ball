@@ -194,6 +194,28 @@ def get_dashboard():
     }), 200
 
 
+@users_bp.get("/stats")
+def get_stats():
+    """Return public platform statistics.
+
+    No authentication required. Stats are computed on the fly from live data.
+
+    Returns:
+        200 with ``total_predicted_positions``, ``total_leagues``,
+        ``total_users``, and ``total_predictions`` keys.
+    """
+    total_predictions = UserPrediction.query.count()
+    total_leagues     = League.query.count()
+    total_users       = User.query.count()
+
+    return jsonify({
+        "total_predicted_positions": total_predictions * 20,
+        "total_predictions":         total_predictions,
+        "total_leagues":             total_leagues,
+        "total_users":               total_users,
+    }), 200
+
+
 @users_bp.get("/<int:user_id>")
 def get_user(user_id: int):
     """Return the public profile for the given user.
@@ -213,6 +235,64 @@ def get_user(user_id: int):
         "first_name": user.first_name,
         "last_name": user.last_name,
         "created_at": user.created_at.isoformat(),
+    }), 200
+
+
+@users_bp.get("/<int:user_id>/profile")
+@jwt_required()
+def get_user_profile(user_id: int):
+    """Return the public stats profile for a given user.
+
+    Includes the current season score, global rank, and prediction standings
+    (only if the deadline has passed), plus a history of past seasons with
+    scores and global ranks. League membership is excluded entirely.
+
+    Args:
+        user_id: Primary key of the target user.
+
+    Returns:
+        200 with profile payload, or 404 if the user does not exist.
+    """
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "user not found"}), 404
+
+    try:
+        current_season = get_latest_epl_season()
+    except FileNotFoundError:
+        current_season = None
+
+    kicked_off = has_season_kicked_off(current_season) if current_season else False
+
+    def _build_season(season: str, ko: bool) -> dict:
+        prediction = UserPrediction.query.filter_by(user_id=user_id, season=season).first()
+        global_rank = _global_rank(season, user_id)
+        return {
+            "season": season,
+            "score": prediction.current_points if prediction else None,
+            "global_rank": global_rank,
+            "has_prediction": prediction is not None,
+            "prediction_standings": prediction.standings if (prediction and ko) else None,
+        }
+
+    current = _build_season(current_season, kicked_off) if current_season else None
+
+    prediction_seasons = {
+        p.season for p in UserPrediction.query.filter_by(user_id=user_id).all()
+    }
+    past_seasons = sorted(
+        prediction_seasons - ({current_season} if current_season else set()),
+        reverse=True,
+    )
+
+    history = [_build_season(s, True) for s in past_seasons]
+
+    return jsonify({
+        "id": user.id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "current_season": current,
+        "history": history,
     }), 200
 
 
