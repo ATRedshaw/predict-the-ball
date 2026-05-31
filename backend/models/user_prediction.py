@@ -12,7 +12,7 @@ class UserPrediction(db.Model):
     __tablename__ = "user_predictions"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     season = db.Column(db.String(9), nullable=False)  # e.g. "2025/2026"
     # JSON array: ["Man City", "Arsenal", ..., "Wolves"]
     standings = db.Column(db.JSON, nullable=False)

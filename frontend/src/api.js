@@ -7,11 +7,15 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:5000'
  * serialisation/deserialisation. Throws an Error with the server's
  * error message on non-2xx responses.
  *
- * @param {string} path     - Path relative to the API root, e.g. '/api/auth/login'.
- * @param {RequestInit} [options] - Standard fetch options.
+ * @param {string} path              - Path relative to the API root, e.g. '/api/auth/login'.
+ * @param {RequestInit} [options]    - Standard fetch options.
+ * @param {boolean} [skipAutoLogout] - When true, a 401 is thrown as a regular error
+ *                                     instead of redirecting to /login. Useful for
+ *                                     endpoints where 401 means "wrong credentials"
+ *                                     rather than "session expired".
  * @returns {Promise<any>}  Parsed JSON response body.
  */
-async function request(path, options = {}) {
+async function request(path, options = {}, skipAutoLogout = false) {
   const token = localStorage.getItem('access_token')
 
   loadingBus.start()
@@ -27,7 +31,7 @@ async function request(path, options = {}) {
 
     const data = await res.json().catch(() => ({}))
 
-    if (res.status === 401) {
+    if (res.status === 401 && !skipAutoLogout) {
       localStorage.removeItem('access_token')
       localStorage.removeItem('first_name')
       window.location.href = '/login'
@@ -45,8 +49,8 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  post:   (path, body) => request(path, { method: 'POST',   body: JSON.stringify(body) }),
-  put:    (path, body) => request(path, { method: 'PUT',    body: JSON.stringify(body) }),
-  get:    (path)       => request(path, { method: 'GET' }),
+  post:   (path, body, skipAutoLogout) => request(path, { method: 'POST',   body: JSON.stringify(body) }, skipAutoLogout),
+  put:    (path, body, skipAutoLogout) => request(path, { method: 'PUT',    body: JSON.stringify(body) }, skipAutoLogout),
+  get:    (path)                       => request(path, { method: 'GET' }),
   delete: (path, body) => request(path, { method: 'DELETE', ...(body ? { body: JSON.stringify(body) } : {}) }),
 }

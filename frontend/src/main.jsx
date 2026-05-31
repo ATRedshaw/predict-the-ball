@@ -12,6 +12,7 @@ import ForgotPassword from './pages/ForgotPassword.jsx'
 import Home          from './pages/Home.jsx'
 import Predictions   from './pages/Predictions.jsx'
 import Leagues       from './pages/Leagues.jsx'
+import Settings      from './pages/Settings.jsx'
 import NotFound       from './pages/NotFound.jsx'
 
 createRoot(document.getElementById('root')).render(
@@ -33,7 +34,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/predictions"        element={<Predictions />} />
             <Route path="/leagues"            element={<Leagues />} />
             <Route path="/model-predictions"  element={<div />} />
-            <Route path="/settings"           element={<div />} />
+            <Route path="/settings"           element={<Settings />} />
           </Route>
 
           {/* Catch-all */}

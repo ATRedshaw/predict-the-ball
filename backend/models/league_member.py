@@ -7,7 +7,7 @@ class LeagueMember(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     league_id = db.Column(db.Integer, db.ForeignKey("leagues.id"), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     # "owner" or "member"
     role = db.Column(db.String(10), nullable=False, default="member")
     joined_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))

@@ -1,10 +1,23 @@
+import sqlite3
+
 from flask import Flask
 from flask_cors import CORS
 from pathlib import Path
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 
 from config import Config
 from extensions import db, jwt, mail, bcrypt, limiter
 from routes import auth_bp, leagues_bp, predictions_bp, standings_bp, users_bp
+
+
+@event.listens_for(Engine, "connect")
+def _set_sqlite_fk_pragma(dbapi_connection, _connection_record) -> None:
+    """Enable FK enforcement for every SQLite connection."""
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 # In-memory JWT blocklist. Replace with a persistent store (Redis, DB) in production.
 _jwt_blocklist: set[str] = set()
