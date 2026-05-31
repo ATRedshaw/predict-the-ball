@@ -232,6 +232,146 @@ function TransferOwnershipModal({ members, currentUserId, leagueId, onClose, onT
 }
 
 // ---------------------------------------------------------------------------
+// Member prediction view
+// ---------------------------------------------------------------------------
+
+function MemberPredictionView({ member, season, kickedOff, currentUserId, onBack }) {
+  const [prediction, setPrediction]       = useState(null)
+  const [actualStandings, setActual]      = useState(null)
+  const [loading, setLoading]             = useState(true)
+  const [error, setError]                 = useState('')
+
+  const isMe = member.user_id === currentUserId
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const predPromise = isMe
+          ? api.get(`/api/predictions/${season}`)
+          : api.get(`/api/predictions/${season}/user/${member.user_id}`)
+
+        const actualPromise = kickedOff
+          ? api.get(`/api/standings/${season}/actual/latest`)
+          : Promise.resolve(null)
+
+        const [pred, actual] = await Promise.all([predPromise, actualPromise])
+        setPrediction(pred)
+        setActual(actual)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [member.user_id, season, kickedOff, isMe])
+
+  // Build a lookup from team name → actual position
+  const actualPositionOf = {}
+  if (actualStandings?.standings) {
+    for (const row of actualStandings.standings) {
+      actualPositionOf[row.team] = row.position
+    }
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto w-full px-4 py-6">
+      <button
+        onClick={onBack}
+        className="text-teal-muted text-sm hover:text-white transition-colors mb-5 flex items-center gap-1"
+      >
+        ← Back to league
+      </button>
+
+      <div className="mb-6">
+        <h1 className="text-white text-2xl font-bold leading-tight">
+          {member.name}{isMe ? <span className="text-teal-muted text-base font-normal ml-2">(you)</span> : ''}
+        </h1>
+        <p className="text-teal-muted text-xs mt-1">{season} predictions</p>
+      </div>
+
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center py-20">
+          <span className="text-white/30 text-sm">Loading…</span>
+        </div>
+      ) : error ? (
+        <div className="bg-red-400/10 border border-red-400/20 rounded-2xl px-4 py-3">
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+      ) : !prediction ? (
+        <div className="bg-jet-dark rounded-2xl p-10 text-center">
+          <p className="text-white/40 text-sm">No prediction submitted.</p>
+        </div>
+      ) : (
+        <>
+          {kickedOff && member.current_points != null && (
+            <div className="bg-jet-dark rounded-2xl px-4 py-3 mb-4 flex items-center justify-between">
+              <span className="text-white/40 text-xs">Total score</span>
+              <span className="text-white font-mono font-bold">{member.current_points} pts</span>
+            </div>
+          )}
+
+          {!kickedOff && isMe && (
+            <div className="bg-teal/10 border border-teal/20 rounded-2xl px-4 py-3 mb-4">
+              <p className="text-teal text-xs">
+                The season hasn't started yet. Actual positions and deltas will appear once the first match is played.
+              </p>
+            </div>
+          )}
+
+          <div className="bg-jet-dark rounded-2xl p-4">
+            <div className="grid grid-cols-[2rem_1fr_3rem_3rem] gap-x-3 px-3 pb-2 mb-1">
+              <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">#</span>
+              <span className="text-white/30 text-[10px] uppercase tracking-widest">Team</span>
+              {kickedOff && <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Act.</span>}
+              {kickedOff && <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Δ</span>}
+            </div>
+            <div className="space-y-1">
+              {prediction.standings.map((team, i) => {
+                const predictedPos = i + 1
+                const actualPos    = actualPositionOf[team] ?? null
+                const delta        = actualPos != null ? actualPos - predictedPos : null
+
+                return (
+                  <div
+                    key={team}
+                    className="grid grid-cols-[2rem_1fr_3rem_3rem] gap-x-3 items-center rounded-xl px-3 py-2 bg-jet"
+                  >
+                    <span className="text-white/40 font-mono text-xs text-center">{predictedPos}</span>
+                    <span className="text-white text-sm truncate">{team}</span>
+                    {kickedOff && (
+                      <span className="text-white/50 font-mono text-xs text-center">
+                        {actualPos ?? '—'}
+                      </span>
+                    )}
+                    {kickedOff && (
+                      <span className={`font-mono text-xs text-center ${
+                        delta === null ? 'text-white/30'
+                        : delta === 0  ? 'text-teal'
+                        : delta < 0   ? 'text-green-400'
+                        : 'text-red-400'
+                      }`}>
+                        {delta === null ? '—' : delta === 0 ? '✓' : delta > 0 ? `+${delta}` : delta}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {kickedOff && (
+            <p className="text-white/20 text-xs mt-3 text-center">
+              Δ = actual − predicted position. Negative means the team finished higher than predicted.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // League detail view
 // ---------------------------------------------------------------------------
 
@@ -242,6 +382,7 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
   const [actionError, setActionError] = useState('')
   const [modal, setModal]             = useState(null) // 'transfer' | 'confirm-leave' | 'confirm-delete' | 'confirm-kick'
   const [kickTarget, setKickTarget]   = useState(null)
+  const [viewingMember, setViewingMember] = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -322,6 +463,18 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
     displayRank: league.kicked_off && m.current_points != null ? i + 1 : null,
   }))
 
+  if (viewingMember) {
+    return (
+      <MemberPredictionView
+        member={viewingMember}
+        season={league.season}
+        kickedOff={league.kicked_off}
+        currentUserId={currentUserId}
+        onBack={() => setViewingMember(null)}
+      />
+    )
+  }
+
   return (
     <div className="max-w-2xl mx-auto w-full px-4 py-6">
 
@@ -384,12 +537,14 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
           {ranked.map((member, idx) => {
             const rank   = member.displayRank ?? idx + 1
             const { symbol, cls } = rankLabel(rank)
-            const isMe   = member.user_id === currentUserId
+            const isMe      = member.user_id === currentUserId
+            const canView   = league.kicked_off || isMe
 
             return (
               <div
                 key={member.user_id}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${isMe ? 'bg-teal/10 border border-teal/20' : 'bg-jet'}`}
+                onClick={canView ? () => setViewingMember(member) : undefined}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${isMe ? 'bg-teal/10 border border-teal/20' : 'bg-jet'} ${canView ? 'cursor-pointer hover:brightness-125 transition-[filter]' : ''}`}
               >
                 {/* rank */}
                 <span className={`font-mono text-sm w-6 text-center shrink-0 ${cls}`}>
