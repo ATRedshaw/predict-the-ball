@@ -5,7 +5,7 @@ import { PageLoadingProvider } from './PageLoadingContext'
 
 const PATH_TO_PAGE = {
   '/':                   'landing',
-  '/home':               'home',
+  '/dashboard':          'dashboard',
   '/predictions':        'predictions',
   '/leagues':            'leagues',
   '/model-predictions':  'model-predictions',
