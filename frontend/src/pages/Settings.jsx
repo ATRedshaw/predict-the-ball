@@ -319,9 +319,14 @@ export default function Settings() {
                     <option value="">Delete this league</option>
                     {league.other_members.length > 0 && (
                       <optgroup label="Transfer ownership to">
-                        {league.other_members.map(m => (
-                          <option key={m.user_id} value={m.user_id}>{m.name}</option>
-                        ))}
+                        {league.other_members.map(m => {
+                          const atLimit = m.owned_count >= 10
+                          return (
+                            <option key={m.user_id} value={m.user_id} disabled={atLimit}>
+                              {m.name}{atLimit ? ' (at ownership limit)' : ''}
+                            </option>
+                          )
+                        })}
                       </optgroup>
                     )}
                   </select>
