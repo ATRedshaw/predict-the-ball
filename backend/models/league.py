@@ -11,7 +11,7 @@ class League(db.Model):
     # Short unique invite code, e.g. "X7K2PQ"
     code = db.Column(db.String(10), unique=True, nullable=False, default=lambda: secrets.token_urlsafe(6).upper()[:6])
     season = db.Column(db.String(9), nullable=False)  # e.g. "2025/2026"
-    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships

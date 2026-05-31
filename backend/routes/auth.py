@@ -547,6 +547,10 @@ def delete_account():
 
     # Flush ownership/deletion changes before removing the user so FK
     # constraints on leagues.created_by are satisfied.
+    # Also nullify created_by on any leagues the user originally created but
+    # later transferred away — those won't appear in the owned query above
+    # since they're no longer the LeagueMember owner.
+    League.query.filter_by(created_by=user_id).update({"created_by": None})
     db.session.flush()
 
     # Delete the user. ORM cascades on User.league_memberships and
