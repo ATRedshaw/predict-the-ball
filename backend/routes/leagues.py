@@ -6,7 +6,7 @@ from models.league import League
 from models.league_member import LeagueMember
 from models.user import User
 from models.user_prediction import UserPrediction
-from services.epl import has_season_kicked_off
+from services.epl import has_season_kicked_off, get_latest_epl_season
 
 leagues_bp = Blueprint("leagues", __name__, url_prefix="/api/leagues")
 
@@ -230,6 +230,14 @@ def join_league():
     league = League.query.filter_by(code=code).first()
     if league is None:
         return jsonify({"error": "Invalid invite code"}), 404
+
+    try:
+        current_season = get_latest_epl_season()
+    except FileNotFoundError:
+        current_season = None
+
+    if current_season and league.season != current_season:
+        return jsonify({"error": "This league is from a previous season and is no longer open to new members"}), 403
 
     if _get_membership(league.id, user_id) is not None:
         return jsonify({"error": "You are already a member of this league"}), 409

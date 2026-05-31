@@ -556,20 +556,40 @@ function LeagueDetail({ leagueId, currentUserId, onBack, onDeleted }) {
 function LeagueList({ leagues, season, onSelect, onCreated, onJoined }) {
   const [modal, setModal] = useState(null) // 'create' | 'join'
 
+  // Build the ordered list of seasons present in the user's leagues, always
+  // putting the current season first even if the user has no leagues in it yet.
+  const availableSeasons = Array.from(
+    new Set([season, ...leagues.map(l => l.season)].filter(Boolean))
+  ).sort((a, b) => {
+    const yr = s => parseInt(s?.split('-')[0] ?? '0', 10)
+    return yr(b) - yr(a)
+  })
+
+  const [filterSeason, setFilterSeason] = useState(season)
+
+  // Keep the filter on the current season when the page first loads and season arrives.
+  const isPastSeason = filterSeason && filterSeason !== season
+
+  const visibleLeagues = filterSeason
+    ? leagues.filter(l => l.season === filterSeason)
+    : leagues
+
   return (
     <div className="max-w-2xl mx-auto w-full px-4 py-6">
-      <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
         <div>
           <h1 className="text-white text-2xl font-bold leading-tight">Leagues</h1>
           <p className="text-teal-muted text-xs mt-1">Compete with friends across the {season} season</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setModal('join')}
-            className="text-white/70 text-sm border border-white/10 px-4 py-2 rounded-xl hover:bg-white/5 transition-colors"
-          >
-            Join
-          </button>
+          {!isPastSeason && (
+            <button
+              onClick={() => setModal('join')}
+              className="text-white/70 text-sm border border-white/10 px-4 py-2 rounded-xl hover:bg-white/5 transition-colors"
+            >
+              Join
+            </button>
+          )}
           <button
             onClick={() => setModal('create')}
             className="bg-teal text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-jet transition-colors"
@@ -579,28 +599,55 @@ function LeagueList({ leagues, season, onSelect, onCreated, onJoined }) {
         </div>
       </div>
 
-      {leagues.length === 0 ? (
+      {/* Season filter — only shown when the user has leagues spanning multiple seasons */}
+      {availableSeasons.length > 1 && (
+        <div className="mb-5">
+          <select
+            value={filterSeason}
+            onChange={e => setFilterSeason(e.target.value)}
+            className="bg-jet border border-white/10 rounded-xl px-4 py-2 text-white text-xs focus:outline-none focus:border-teal/50 transition-colors"
+          >
+            {availableSeasons.map(s => (
+              <option key={s} value={s}>
+                {s}{s === season ? ' (current)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {isPastSeason && (
+        <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 mb-4">
+          <p className="text-white/40 text-xs">
+            Leagues from the {filterSeason} season are view-only. You can still manage, leave, or delete them, but new members can't join.
+          </p>
+        </div>
+      )}
+
+      {visibleLeagues.length === 0 ? (
         <div className="bg-jet-dark rounded-2xl p-10 text-center">
-          <p className="text-white/40 text-sm mb-1">You're not in any leagues yet.</p>
+          <p className="text-white/40 text-sm mb-1">No leagues for this season yet.</p>
           <p className="text-white/20 text-xs">Create one or ask a friend for their invite code.</p>
-          <div className="flex justify-center gap-3 mt-6">
-            <button
-              onClick={() => setModal('join')}
-              className="text-white/60 text-sm border border-white/10 px-5 py-2.5 rounded-xl hover:bg-white/5 transition-colors"
-            >
-              Join with a code
-            </button>
-            <button
-              onClick={() => setModal('create')}
-              className="bg-teal text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-jet transition-colors"
-            >
-              Create a league
-            </button>
-          </div>
+          {!isPastSeason && (
+            <div className="flex justify-center gap-3 mt-6">
+              <button
+                onClick={() => setModal('join')}
+                className="text-white/60 text-sm border border-white/10 px-5 py-2.5 rounded-xl hover:bg-white/5 transition-colors"
+              >
+                Join with a code
+              </button>
+              <button
+                onClick={() => setModal('create')}
+                className="bg-teal text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-jet transition-colors"
+              >
+                Create a league
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
-          {leagues.map(league => (
+          {visibleLeagues.map(league => (
             <button
               key={league.id}
               onClick={() => onSelect(league.id)}
@@ -612,6 +659,7 @@ function LeagueList({ leagues, season, onSelect, onCreated, onJoined }) {
                   <p className="text-white/40 text-xs mt-0.5">{league.season} · {league.member_count} member{league.member_count !== 1 ? 's' : ''}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  {league.season !== season && <Badge colour="muted">Past season</Badge>}
                   {league.role === 'owner' && <Badge colour="yellow">Owner</Badge>}
                   <span className="text-white/20 group-hover:text-white/50 transition-colors text-sm">→</span>
                 </div>
