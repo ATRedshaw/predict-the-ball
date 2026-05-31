@@ -186,7 +186,16 @@ def login():
     if not user or not user.check_password(password):
         return jsonify({"error": "invalid credentials"}), 401
     if not user.is_verified:
-        return jsonify({"error": "email address not verified"}), 403
+        code_valid = (
+            user.verification_code is not None
+            and user.verification_code_expires_at is not None
+            and user.verification_code_expires_at > datetime.utcnow()
+        )
+        if not code_valid:
+            code = user.generate_verification_code()
+            db.session.commit()
+            _send_verification_email(user, code)
+        return jsonify({"error": "email_not_verified", "code_valid": code_valid}), 403
 
     access_token = create_access_token(identity=str(user.id))
     return jsonify({"access_token": access_token}), 200
