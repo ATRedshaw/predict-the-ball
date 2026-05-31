@@ -70,6 +70,8 @@ def create_league():
 
     if not name:
         return jsonify({"error": "name is required"}), 400
+    if len(name) > 40:
+        return jsonify({"error": "name must be 40 characters or fewer"}), 400
     if not season:
         return jsonify({"error": "season is required"}), 400
 
