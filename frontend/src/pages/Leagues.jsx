@@ -564,7 +564,9 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
                 {league.kicked_off ? (
                   member.current_points != null
                     ? <span className="text-white font-mono text-sm font-bold shrink-0">{member.current_points} pts</span>
-                    : <span className="text-white/30 text-xs shrink-0 italic">No prediction</span>
+                    : member.has_prediction
+                      ? <span className="text-white/30 text-xs shrink-0 italic">Score pending</span>
+                      : <span className="text-white/30 text-xs shrink-0 italic">No prediction</span>
                 ) : (
                   member.has_prediction
                     ? <Badge colour="teal">Predicted</Badge>
