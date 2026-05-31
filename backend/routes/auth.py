@@ -186,7 +186,16 @@ def login():
     if not user or not user.check_password(password):
         return jsonify({"error": "invalid credentials"}), 401
     if not user.is_verified:
-        return jsonify({"error": "email address not verified"}), 403
+        code_valid = (
+            user.verification_code is not None
+            and user.verification_code_expires_at is not None
+            and user.verification_code_expires_at > datetime.utcnow()
+        )
+        if not code_valid:
+            code = user.generate_verification_code()
+            db.session.commit()
+            _send_verification_email(user, code)
+        return jsonify({"error": "email_not_verified", "code_valid": code_valid}), 403
 
     access_token = create_access_token(identity=str(user.id))
     return jsonify({"access_token": access_token}), 200
@@ -538,6 +547,10 @@ def delete_account():
 
     # Flush ownership/deletion changes before removing the user so FK
     # constraints on leagues.created_by are satisfied.
+    # Also nullify created_by on any leagues the user originally created but
+    # later transferred away — those won't appear in the owned query above
+    # since they're no longer the LeagueMember owner.
+    League.query.filter_by(created_by=user_id).update({"created_by": None})
     db.session.flush()
 
     # Delete the user. ORM cascades on User.league_memberships and

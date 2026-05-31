@@ -39,7 +39,9 @@ async function request(path, options = {}, skipAutoLogout = false) {
     }
 
     if (!res.ok) {
-      throw new Error(data.error || `Request failed (${res.status})`)
+      const err = new Error(data.error || `Request failed (${res.status})`)
+      err.code = data.error ?? null
+      throw err
     }
 
     return data
