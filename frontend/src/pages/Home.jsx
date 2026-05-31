@@ -45,7 +45,7 @@ function EmptyState({ message, cta, to }) {
 // Prediction card
 // ---------------------------------------------------------------------------
 
-function PredictionCard({ prediction, season, kickedOff }) {
+function PredictionCard({ prediction, season, kickedOff, actualLookup }) {
   if (!prediction) {
     if (kickedOff) {
       return (
@@ -67,6 +67,7 @@ function PredictionCard({ prediction, season, kickedOff }) {
   const dateLabel = new Date(updated_at ?? submitted_at).toLocaleString('en-GB', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
+  const hasActual = actualLookup && Object.keys(actualLookup).length > 0
 
   return (
     <div className="bg-jet-dark rounded-2xl p-5">
@@ -94,22 +95,41 @@ function PredictionCard({ prediction, season, kickedOff }) {
       </div>
 
       {standings && (
-        <div className="space-y-1.5">
-          {standings.slice(0, 5).map((team, i) => {
-            const pos = i + 1
-            const posColour =
-              pos === 1 ? 'text-yellow-400' :
-              pos >= 18 ? 'text-red-400' :
-              'text-white/40'
-            return (
-              <div key={team} className="flex items-center gap-3">
-                <span className={`font-mono text-xs w-4 text-right shrink-0 ${posColour}`}>{pos}</span>
-                <div className="flex-1 h-7 bg-jet rounded-lg px-3 flex items-center">
+        <div>
+          {hasActual && (
+            <div className="grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem] gap-x-3 px-2 pb-1.5">
+              <span className="text-white/30 text-[10px] uppercase tracking-widest text-right">#</span>
+              <span className="text-white/30 text-[10px] uppercase tracking-widest">Team</span>
+              <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Act.</span>
+              <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Δ</span>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            {standings.slice(0, 5).map((team, i) => {
+              const pos = i + 1
+              const actualPos = actualLookup?.[team]
+              const delta = actualPos != null ? actualPos - pos : null
+              const posColour = pos === 1 ? 'text-yellow-400' : pos >= 18 ? 'text-red-400' : 'text-white/40'
+              const deltaColour = delta == null ? 'text-white/20' : delta < 0 ? 'text-green-400' : delta > 0 ? 'text-red-400' : 'text-white/30'
+              return hasActual ? (
+                <div key={team} className="grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem] gap-x-3 px-2 py-1.5 rounded-lg bg-jet items-center">
+                  <span className={`font-mono text-xs text-right shrink-0 ${posColour}`}>{pos}</span>
                   <span className="text-white text-xs truncate">{team}</span>
+                  <span className="text-white/40 text-xs text-center font-mono">{actualPos ?? '—'}</span>
+                  <span className={`text-xs text-center font-mono ${deltaColour}`}>
+                    {delta == null ? '—' : delta === 0 ? '0' : delta > 0 ? `+${delta}` : delta}
+                  </span>
                 </div>
-              </div>
-            )
-          })}
+              ) : (
+                <div key={team} className="flex items-center gap-3">
+                  <span className={`font-mono text-xs w-4 text-right shrink-0 ${posColour}`}>{pos}</span>
+                  <div className="flex-1 h-7 bg-jet rounded-lg px-3 flex items-center">
+                    <span className="text-white text-xs truncate">{team}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
           {standings.length > 5 && (
             <Link to="/predictions" className="block text-center text-white/30 text-[10px] mt-2 hover:text-teal-muted transition-colors">
               + {standings.length - 5} more · view full prediction
@@ -167,6 +187,20 @@ function LeagueCard({ league, kickedOff }) {
 function HistoryRow({ entry, expanded, onToggle }) {
   const { season, prediction, leagues, global_rank } = entry
   const hasPoints = prediction?.points != null
+  const [actual, setActual] = useState(null)
+
+  useEffect(() => {
+    if (!expanded || actual !== null || !prediction?.standings) return
+    api.get(`/api/standings/${season}/actual/latest`)
+      .then(d => {
+        const lookup = {}
+        ;(d.standings ?? []).forEach(({ position, team }) => { lookup[team] = position })
+        setActual(lookup)
+      })
+      .catch(() => setActual({}))
+  }, [expanded, season])
+
+  const hasActualData = actual && Object.keys(actual).length > 0
 
   return (
     <div className="border border-white/8 rounded-2xl overflow-hidden">
@@ -196,22 +230,42 @@ function HistoryRow({ entry, expanded, onToggle }) {
             <div>
               <SectionHeading>Prediction</SectionHeading>
               {prediction.standings ? (
-                <div className="space-y-1.5">
-                  {prediction.standings.slice(0, 20).map((team, i) => {
-                    const pos = i + 1
-                    const posColour =
-                      pos === 1 ? 'text-yellow-400' :
-                      pos >= 18 ? 'text-red-400' :
-                      'text-white/40'
-                    return (
-                      <div key={team} className="flex items-center gap-3">
-                        <span className={`font-mono text-xs w-4 text-right shrink-0 ${posColour}`}>{pos}</span>
-                        <div className="flex-1 h-6 bg-jet rounded-lg px-3 flex items-center">
+                <div className="bg-jet rounded-xl p-3">
+                  <div className={`grid ${hasActualData ? 'grid-cols-[1.5rem_1fr_2.5rem_2.5rem]' : 'grid-cols-[1.5rem_1fr]'} gap-x-3 px-2 pb-2 mb-1`}>
+                    <span className="text-white/30 text-[10px] uppercase tracking-widest text-right">#</span>
+                    <span className="text-white/30 text-[10px] uppercase tracking-widest">Team</span>
+                    {hasActualData && <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Act.</span>}
+                    {hasActualData && <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Δ</span>}
+                  </div>
+                  <div className="space-y-1">
+                    {prediction.standings.map((team, i) => {
+                      const pos = i + 1
+                      const actualPos = actual?.[team]
+                      const delta = actualPos != null ? actualPos - pos : null
+                      const posColour = pos === 1 ? 'text-yellow-400' : pos >= 18 ? 'text-red-400' : 'text-white/40'
+                      const deltaColour = delta == null ? 'text-white/20' : delta < 0 ? 'text-green-400' : delta > 0 ? 'text-red-400' : 'text-white/30'
+                      return (
+                        <div
+                          key={team}
+                          className={`grid ${hasActualData ? 'grid-cols-[1.5rem_1fr_2.5rem_2.5rem]' : 'grid-cols-[1.5rem_1fr]'} gap-x-3 px-2 py-1.5 rounded-lg bg-jet-dark items-center`}
+                        >
+                          <span className={`font-mono text-xs text-right shrink-0 ${posColour}`}>{pos}</span>
                           <span className="text-white text-xs truncate">{team}</span>
+                          {hasActualData && <span className="text-white/40 text-xs text-center font-mono">{actualPos ?? '—'}</span>}
+                          {hasActualData && (
+                            <span className={`text-xs text-center font-mono ${deltaColour}`}>
+                              {delta == null ? '—' : delta === 0 ? '0' : delta > 0 ? `+${delta}` : delta}
+                            </span>
+                          )}
                         </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })}
+                  </div>
+                  {hasActualData && (
+                    <p className="text-white/20 text-[10px] mt-3 text-center">
+                      Δ = actual − predicted. Negative means the team finished higher than predicted.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <p className="text-white/30 text-xs">Standings not available.</p>
@@ -260,16 +314,33 @@ export default function Home() {
   const [data,  setData]  = useState(null)
   const [error, setError] = useState(null)
   const [expandedSeason, setExpandedSeason] = useState(null)
+  const [actualLookup, setActualLookup] = useState(null)
 
   useLayoutEffect(() => {
     setPageLoading(true)
   }, [])
 
   useEffect(() => {
-    api.get('/api/users/me/dashboard')
-      .then(setData)
-      .catch(err => setError(err.message))
-      .finally(() => setPageLoading(false))
+    async function load() {
+      try {
+        const dashboard = await api.get('/api/users/me/dashboard')
+        setData(dashboard)
+        if (dashboard.current_season && dashboard.kicked_off) {
+          api.get(`/api/standings/${dashboard.current_season}/actual/latest`)
+            .then(d => {
+              const lookup = {}
+              ;(d.standings ?? []).forEach(({ position, team }) => { lookup[team] = position })
+              setActualLookup(lookup)
+            })
+            .catch(() => {})
+        }
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setPageLoading(false)
+      }
+    }
+    load()
   }, [setPageLoading])
 
   if (error) {
@@ -367,6 +438,7 @@ export default function Home() {
             prediction={current?.prediction}
             season={current_season}
             kickedOff={kicked_off}
+            actualLookup={actualLookup}
           />
         </div>
 
@@ -377,15 +449,15 @@ export default function Home() {
           </div>
           {currentLeagues.length > 0 ? (
             <div className="space-y-2">
-              {currentLeagues.slice(0, 3).map(l => (
+              {currentLeagues.slice(0, 4).map(l => (
                 <LeagueCard key={l.id} league={l} kickedOff={kicked_off} />
               ))}
-              {currentLeagues.length > 3 && (
+              {currentLeagues.length > 4 && (
                 <Link
                   to="/leagues"
                   className="block text-center text-white/30 text-[10px] mt-1 hover:text-teal-muted transition-colors"
                 >
-                  + {currentLeagues.length - 3} more · view all leagues
+                  + {currentLeagues.length - 4} more · view all leagues
                 </Link>
               )}
             </div>
