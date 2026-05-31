@@ -371,13 +371,14 @@ def update_profile():
 def owned_leagues():
     """Return leagues owned by the authenticated user, with their other members.
 
-    Used by the account-deletion flow to populate transfer-ownership dropdowns.
+    Each other member includes their current owned-league count for the league's
+    season, so the client can indicate when a member is at the ownership cap.
 
     Requires: Authorization header with Bearer token.
 
     Returns:
         200 with a list of owned leagues, each containing an ``other_members``
-        array of ``{ user_id, name }`` objects.
+        array of ``{ user_id, name, owned_count }`` objects.
     """
     from models.league import League
     from models.league_member import LeagueMember
@@ -390,12 +391,25 @@ def owned_leagues():
         .all()
     )
 
+    def _owned_count(uid: int, season: str) -> int:
+        return (
+            LeagueMember.query
+            .join(League, League.id == LeagueMember.league_id)
+            .filter(
+                LeagueMember.user_id == uid,
+                LeagueMember.role == "owner",
+                League.season == season,
+            )
+            .count()
+        )
+
     result = []
     for league in owned:
         other_members = [
             {
                 "user_id": m.user_id,
                 "name": f"{m.user.first_name} {m.user.last_name}" if m.user else "Unknown",
+                "owned_count": _owned_count(m.user_id, league.season),
             }
             for m in LeagueMember.query.filter_by(league_id=league.id).all()
             if m.user_id != user_id
@@ -419,15 +433,33 @@ def delete_account():
     existing member. Leagues without a specified transfer target are deleted in
     full (all member rows are removed via the League cascade).
 
+    Transfer targets are validated against the 10-leagues-per-season ownership cap
+    before any mutations are applied. Multiple transfers to the same recipient in
+    the same request are counted together during validation.
+
     Requires: Authorization header with Bearer token.
     Body (optional): { transfers: { "<league_id>": <new_owner_user_id> | null } }
 
     Returns:
-        200 on success, 400 on invalid transfer target, 404 if user not found.
+        200 on success, 400 on invalid/cap-exceeding transfer target, 404 if user not found.
     """
     from app import get_jwt_blocklist
     from models.league import League
     from models.league_member import LeagueMember
+
+    _MAX_OWNED = 10
+
+    def _owned_count(uid: int, season: str) -> int:
+        return (
+            LeagueMember.query
+            .join(League, League.id == LeagueMember.league_id)
+            .filter(
+                LeagueMember.user_id == uid,
+                LeagueMember.role == "owner",
+                League.season == season,
+            )
+            .count()
+        )
 
     user_id = int(get_jwt_identity())
     user = db.session.get(User, user_id)
@@ -445,35 +477,66 @@ def delete_account():
         .all()
     )
 
+    # ── Validation pass (no mutations yet) ────────────────────────────────────
+    # Track how many additional leagues each recipient would gain from this
+    # single request, so multiple transfers to the same person are counted together.
+    pending: dict[tuple[int, str], int] = {}
+
     for league in owned:
-        new_owner_id = transfers.get(str(league.id))
+        raw = transfers.get(str(league.id))
+        if raw is None:
+            continue  # league will be deleted — no cap concern
+
+        try:
+            new_owner_id = int(raw)
+        except (TypeError, ValueError):
+            return jsonify({"error": f"Invalid transfer target for league '{league.name}'"}), 400
+
+        if new_owner_id == user_id:
+            return jsonify({"error": f"Cannot transfer '{league.name}' to yourself"}), 400
+
+        membership = LeagueMember.query.filter_by(
+            league_id=league.id, user_id=new_owner_id,
+        ).first()
+        if membership is None:
+            return jsonify({"error": f"Transfer target is not a member of '{league.name}'"}), 400
+
+        key = (new_owner_id, league.season)
+        committed = _owned_count(new_owner_id, league.season)
+        in_flight = pending.get(key, 0)
+        if committed + in_flight >= _MAX_OWNED:
+            recipient = membership.user
+            name = f"{recipient.first_name} {recipient.last_name}" if recipient else "That user"
+            return jsonify({
+                "error": (
+                    f"{name} already owns {committed + in_flight} league(s) in the "
+                    f"{league.season} season and cannot receive ownership of '{league.name}'."
+                )
+            }), 400
+
+        pending[key] = in_flight + 1
+
+    # ── Mutation pass ──────────────────────────────────────────────────────────
+    for league in owned:
+        raw = transfers.get(str(league.id))
+        new_owner_id = int(raw) if raw is not None else None
 
         if new_owner_id is not None:
-            # Validate the transfer target is an existing member (not the owner).
             new_membership = LeagueMember.query.filter_by(
                 league_id=league.id, user_id=new_owner_id,
             ).first()
-            if new_membership is None or new_membership.user_id == user_id:
-                return jsonify({
-                    "error": f"Invalid transfer target for league '{league.name}'",
-                }), 400
-
             owner_membership = LeagueMember.query.filter_by(
                 league_id=league.id, user_id=user_id,
             ).first()
+
             new_membership.role = "owner"
             league.created_by = new_owner_id
-            # Remove the outgoing owner's membership — cascade will not do this
-            # automatically since we're about to delete the user.
             if owner_membership:
                 db.session.delete(owner_membership)
         else:
-            # No transfer requested — delete the whole league.
-            # League.members has cascade="all, delete-orphan", so all
-            # LeagueMember rows for this league are removed automatically.
             db.session.delete(league)
 
-    # Flush ownership/deletion changes before removing the user, so FK
+    # Flush ownership/deletion changes before removing the user so FK
     # constraints on leagues.created_by are satisfied.
     db.session.flush()
 
@@ -482,7 +545,7 @@ def delete_account():
     db.session.delete(user)
     db.session.commit()
 
-    # Blocklist the current token so it can't be reused.
+    # Blocklist the current token so it cannot be reused.
     jti = get_jwt()["jti"]
     get_jwt_blocklist().add(jti)
 
