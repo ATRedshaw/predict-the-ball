@@ -47,7 +47,12 @@ export default function SignUp() {
 
     try {
       await api.post('/api/auth/verify-email', { email, code })
-      navigate('/login', { state: { verified: true } })
+      // Email confirmed — log straight in.
+      const data = await api.post('/api/auth/login', { email, password }, true)
+      localStorage.setItem('access_token', data.access_token)
+      const me = await api.get('/api/auth/me')
+      localStorage.setItem('first_name', me.first_name)
+      navigate('/home')
     } catch (err) {
       setError(err.message)
     } finally {
