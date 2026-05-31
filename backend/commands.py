@@ -48,6 +48,16 @@ def save_actual_standings_snapshot(season: str) -> None:
         print(f"No table data for season {season} — skipping snapshot.")
         return
 
+    latest = (
+        ActualStanding.query
+        .filter_by(season=season)
+        .order_by(ActualStanding.updated_at.desc())
+        .first()
+    )
+    if latest is not None and latest.standings == table:
+        print(f"Table unchanged for {season} — skipping snapshot.")
+        return
+
     snapshot = ActualStanding(
         season=season,
         standings=table,
