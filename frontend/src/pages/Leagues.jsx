@@ -232,14 +232,15 @@ function TransferOwnershipModal({ members, currentUserId, leagueId, onClose, onT
 }
 
 // ---------------------------------------------------------------------------
-// Member prediction view
+// Member prediction view (with inline stats + history)
 // ---------------------------------------------------------------------------
 
 function MemberPredictionView({ member, season, kickedOff, currentUserId, onBack }) {
-  const [prediction, setPrediction]       = useState(null)
-  const [actualStandings, setActual]      = useState(null)
-  const [loading, setLoading]             = useState(true)
-  const [error, setError]                 = useState('')
+  const [prediction, setPrediction] = useState(null)
+  const [actualStandings, setActual] = useState(null)
+  const [profile, setProfile]       = useState(null)
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState('')
 
   const isMe = member.user_id === currentUserId
 
@@ -254,9 +255,12 @@ function MemberPredictionView({ member, season, kickedOff, currentUserId, onBack
           ? api.get(`/api/standings/${season}/actual/latest`)
           : Promise.resolve(null)
 
-        const [pred, actual] = await Promise.all([predPromise, actualPromise])
+        const profilePromise = api.get(`/api/users/${member.user_id}/profile`)
+
+        const [pred, actual, prof] = await Promise.all([predPromise, actualPromise, profilePromise])
         setPrediction(pred)
         setActual(actual)
+        setProfile(prof)
       } catch (err) {
         setError(err.message)
       } finally {
@@ -298,16 +302,29 @@ function MemberPredictionView({ member, season, kickedOff, currentUserId, onBack
         <div className="bg-red-400/10 border border-red-400/20 rounded-2xl px-4 py-3">
           <p className="text-red-400 text-sm">{error}</p>
         </div>
-      ) : !prediction ? (
-        <div className="bg-jet-dark rounded-2xl p-10 text-center">
-          <p className="text-white/40 text-sm">No prediction submitted.</p>
-        </div>
       ) : (
         <>
-          {kickedOff && member.current_points != null && (
-            <div className="bg-jet-dark rounded-2xl px-4 py-3 mb-4 flex items-center justify-between">
-              <span className="text-white/40 text-xs">Total score</span>
-              <span className="text-white font-mono font-bold">{member.current_points} pts</span>
+          {/* Season stats header — replaces the old single "Total score" row */}
+          {kickedOff && profile?.current_season && (
+            <div className="bg-jet-dark rounded-2xl p-4 mb-4">
+              <p className="text-teal-muted text-xs uppercase tracking-widest mb-3">{season}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-jet rounded-xl px-4 py-3">
+                  <p className="text-white/40 text-xs mb-1">Score</p>
+                  <p className="text-white font-mono font-bold text-lg">
+                    {profile.current_season.score != null ? `${profile.current_season.score} pts` : '—'}
+                  </p>
+                </div>
+                <div className="bg-jet rounded-xl px-4 py-3">
+                  <p className="text-white/40 text-xs mb-1">Global rank</p>
+                  <p className="text-white font-mono font-bold text-lg">
+                    {profile.current_season.global_rank ? `#${profile.current_season.global_rank.rank}` : '—'}
+                  </p>
+                  {profile.current_season.global_rank && (
+                    <p className="text-white/30 text-xs">of {profile.current_season.global_rank.total}</p>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -319,51 +336,87 @@ function MemberPredictionView({ member, season, kickedOff, currentUserId, onBack
             </div>
           )}
 
-          <div className="bg-jet-dark rounded-2xl p-4">
-            <div className="grid grid-cols-[2rem_1fr_3rem_3rem] gap-x-3 px-3 pb-2 mb-1">
-              <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">#</span>
-              <span className="text-white/30 text-[10px] uppercase tracking-widest">Team</span>
-              {kickedOff && <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Act.</span>}
-              {kickedOff && <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Δ</span>}
+          {!prediction ? (
+            <div className="bg-jet-dark rounded-2xl p-10 text-center">
+              <p className="text-white/40 text-sm">No prediction submitted.</p>
             </div>
-            <div className="space-y-1">
-              {prediction.standings.map((team, i) => {
-                const predictedPos = i + 1
-                const actualPos    = actualPositionOf[team] ?? null
-                const delta        = actualPos != null ? actualPos - predictedPos : null
+          ) : (
+            <>
+              <div className="bg-jet-dark rounded-2xl p-4">
+                <div className="grid grid-cols-[2rem_1fr_3rem_3rem] gap-x-3 px-3 pb-2 mb-1">
+                  <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">#</span>
+                  <span className="text-white/30 text-[10px] uppercase tracking-widest">Team</span>
+                  {kickedOff && <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Act.</span>}
+                  {kickedOff && <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Δ</span>}
+                </div>
+                <div className="space-y-1">
+                  {prediction.standings.map((team, i) => {
+                    const predictedPos = i + 1
+                    const actualPos    = actualPositionOf[team] ?? null
+                    const delta        = actualPos != null ? actualPos - predictedPos : null
 
-                return (
+                    return (
+                      <div
+                        key={team}
+                        className="grid grid-cols-[2rem_1fr_3rem_3rem] gap-x-3 items-center rounded-xl px-3 py-2 bg-jet"
+                      >
+                        <span className="text-white/40 font-mono text-xs text-center">{predictedPos}</span>
+                        <span className="text-white text-sm truncate">{team}</span>
+                        {kickedOff && (
+                          <span className="text-white/50 font-mono text-xs text-center">
+                            {actualPos ?? '—'}
+                          </span>
+                        )}
+                        {kickedOff && (
+                          <span className={`font-mono text-xs text-center ${
+                            delta === null ? 'text-white/30'
+                            : delta === 0  ? 'text-teal'
+                            : delta < 0   ? 'text-green-400'
+                            : 'text-red-400'
+                          }`}>
+                            {delta === null ? '—' : delta === 0 ? '✓' : delta > 0 ? `+${delta}` : delta}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {kickedOff && (
+                <p className="text-white/20 text-xs mt-3 text-center">
+                  Δ = actual − predicted position. Negative means the team finished higher than predicted.
+                </p>
+              )}
+            </>
+          )}
+
+          {/* Previous seasons */}
+          {profile?.history?.length > 0 && (
+            <div className="bg-jet-dark rounded-2xl p-4 mt-4">
+              <p className="text-teal-muted text-xs uppercase tracking-widest mb-3">Previous seasons</p>
+              <div className="space-y-2">
+                {profile.history.map(h => (
                   <div
-                    key={team}
-                    className="grid grid-cols-[2rem_1fr_3rem_3rem] gap-x-3 items-center rounded-xl px-3 py-2 bg-jet"
+                    key={h.season}
+                    className="bg-jet rounded-xl px-4 py-3 flex items-center justify-between"
                   >
-                    <span className="text-white/40 font-mono text-xs text-center">{predictedPos}</span>
-                    <span className="text-white text-sm truncate">{team}</span>
-                    {kickedOff && (
-                      <span className="text-white/50 font-mono text-xs text-center">
-                        {actualPos ?? '—'}
+                    <span className="text-white/60 text-sm font-mono">{h.season}</span>
+                    <div className="flex items-center gap-3">
+                      {h.global_rank && (
+                        <span className="text-white/40 text-xs font-mono">
+                          #{h.global_rank.rank}
+                          <span className="text-white/20">/{h.global_rank.total}</span>
+                        </span>
+                      )}
+                      <span className="text-white font-mono text-sm font-bold">
+                        {h.score != null ? `${h.score} pts` : '—'}
                       </span>
-                    )}
-                    {kickedOff && (
-                      <span className={`font-mono text-xs text-center ${
-                        delta === null ? 'text-white/30'
-                        : delta === 0  ? 'text-teal'
-                        : delta < 0   ? 'text-green-400'
-                        : 'text-red-400'
-                      }`}>
-                        {delta === null ? '—' : delta === 0 ? '✓' : delta > 0 ? `+${delta}` : delta}
-                      </span>
-                    )}
+                    </div>
                   </div>
-                )
-              })}
+                ))}
+              </div>
             </div>
-          </div>
-
-          {kickedOff && (
-            <p className="text-white/20 text-xs mt-3 text-center">
-              Δ = actual − predicted position. Negative means the team finished higher than predicted.
-            </p>
           )}
         </>
       )}
@@ -382,7 +435,7 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
   const [actionError, setActionError] = useState('')
   const [modal, setModal]             = useState(null) // 'transfer' | 'confirm-leave' | 'confirm-delete' | 'confirm-kick'
   const [kickTarget, setKickTarget]   = useState(null)
-  const [viewingMember, setViewingMember] = useState(null)
+  const [viewingMember, setViewingMember]   = useState(null)
 
   const load = useCallback(async () => {
     try {

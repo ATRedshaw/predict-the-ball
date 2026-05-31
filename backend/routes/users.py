@@ -238,4 +238,62 @@ def get_user(user_id: int):
     }), 200
 
 
+@users_bp.get("/<int:user_id>/profile")
+@jwt_required()
+def get_user_profile(user_id: int):
+    """Return the public stats profile for a given user.
+
+    Includes the current season score, global rank, and prediction standings
+    (only if the deadline has passed), plus a history of past seasons with
+    scores and global ranks. League membership is excluded entirely.
+
+    Args:
+        user_id: Primary key of the target user.
+
+    Returns:
+        200 with profile payload, or 404 if the user does not exist.
+    """
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "user not found"}), 404
+
+    try:
+        current_season = get_latest_epl_season()
+    except FileNotFoundError:
+        current_season = None
+
+    kicked_off = has_season_kicked_off(current_season) if current_season else False
+
+    def _build_season(season: str, ko: bool) -> dict:
+        prediction = UserPrediction.query.filter_by(user_id=user_id, season=season).first()
+        global_rank = _global_rank(season, user_id)
+        return {
+            "season": season,
+            "score": prediction.current_points if prediction else None,
+            "global_rank": global_rank,
+            "has_prediction": prediction is not None,
+            "prediction_standings": prediction.standings if (prediction and ko) else None,
+        }
+
+    current = _build_season(current_season, kicked_off) if current_season else None
+
+    prediction_seasons = {
+        p.season for p in UserPrediction.query.filter_by(user_id=user_id).all()
+    }
+    past_seasons = sorted(
+        prediction_seasons - ({current_season} if current_season else set()),
+        reverse=True,
+    )
+
+    history = [_build_season(s, True) for s in past_seasons]
+
+    return jsonify({
+        "id": user.id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "current_season": current,
+        "history": history,
+    }), 200
+
+
 
