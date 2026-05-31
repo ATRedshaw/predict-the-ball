@@ -14,17 +14,8 @@ def get_user(user_id: int):
 @users_bp.put("/me")
 def update_profile():
     """
-    Update the authenticated user's profile (username).
-    Body: { username }
-    """
-    pass
-
-
-@users_bp.put("/me/password")
-def change_password():
-    """
-    Change the authenticated user's password.
-    Body: { current_password, new_password }
+    Update the authenticated user's display name.
+    Body: { first_name, last_name }
     """
     pass
 
