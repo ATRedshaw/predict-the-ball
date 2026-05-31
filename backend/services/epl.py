@@ -275,6 +275,11 @@ def calculate_epl_table(
             stats[home]["drawn"] += 1
             stats[away]["drawn"] += 1
 
+    # Ensure every team in the season appears, even those yet to play.
+    for team in get_season_teams(season):
+        if team not in stats:
+            stats[team]  # defaultdict initialises with zeroed stats
+
     table = []
     for team, s in stats.items():
         gd = s["goals_for"] - s["goals_against"]
