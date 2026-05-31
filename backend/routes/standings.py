@@ -42,7 +42,7 @@ def get_latest_actual(season: str):
 
     return jsonify({
         "season": snapshot.season,
-        "updated_at": snapshot.updated_at.isoformat(),
+        "updated_at": snapshot.updated_at.isoformat() + "Z",
         "standings": snapshot.standings,
     })
 
