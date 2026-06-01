@@ -156,6 +156,93 @@ function PositionBreakdown({ row }) {
 }
 
 // ---------------------------------------------------------------------------
+// User vs ELO model card
+// ---------------------------------------------------------------------------
+
+function ordinal(n) {
+  if (n == null) return '—'
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
+function UserVsModel({ ctx }) {
+  if (!ctx) return null
+
+  const { elo_indicative_points, elo_global_rank, elo_global_total, user_points, user_has_prediction, differential } = ctx
+
+  const diffColour =
+    differential == null  ? 'text-white/40' :
+    differential < 0      ? 'text-green-400' :
+    differential > 0      ? 'text-red-400'   :
+                            'text-white/40'
+
+  const diffLabel =
+    differential == null  ? null :
+    differential === 0    ? 'level with the model' :
+    differential < 0      ? `${Math.abs(differential)} pts ahead of the model` :
+                            `${differential} pts behind the model`
+
+  return (
+    <div className="bg-jet-dark rounded-2xl p-5 border border-white/5">
+      <SectionHeading>You vs the model</SectionHeading>
+      <p className="text-white/30 text-xs mb-4 leading-relaxed">
+        The model's score is computed by treating its pre-season projected finish order as a prediction.
+        Lower points = better.
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+
+        {/* Model score */}
+        <div className="bg-jet rounded-xl px-4 py-3 flex flex-col gap-0.5">
+          <span className="text-white/30 text-[10px] uppercase tracking-widest">Model pts</span>
+          <span className="text-white text-xl font-bold font-mono">{elo_indicative_points ?? '—'}</span>
+        </div>
+
+        {/* Model global rank */}
+        <div className="bg-jet rounded-xl px-4 py-3 flex flex-col gap-0.5">
+          <span className="text-white/30 text-[10px] uppercase tracking-widest">Theoretical Global Rank</span>
+          <span className="text-white text-xl font-bold font-mono">
+            {elo_global_rank != null ? ordinal(elo_global_rank) : '—'}
+            {elo_global_total != null && (
+              <span className="text-white/25 text-sm font-normal"> / {elo_global_total}</span>
+            )}
+          </span>
+        </div>
+
+        {/* User score */}
+        <div className="bg-jet rounded-xl px-4 py-3 flex flex-col gap-0.5">
+          <span className="text-white/30 text-[10px] uppercase tracking-widest">Your pts</span>
+          {user_has_prediction ? (
+            <span className="text-white text-xl font-bold font-mono">
+              {user_points ?? <span className="text-white/30 text-sm font-normal">pending</span>}
+            </span>
+          ) : (
+            <span className="text-white/30 text-sm">no prediction</span>
+          )}
+        </div>
+
+        {/* Differential */}
+        <div className="bg-jet rounded-xl px-4 py-3 flex flex-col gap-0.5">
+          <span className="text-white/30 text-[10px] uppercase tracking-widest">Differential</span>
+          {differential != null ? (
+            <span className={`text-xl font-bold font-mono ${diffColour}`}>
+              {differential === 0 ? '0' : differential > 0 ? `+${differential}` : differential}
+            </span>
+          ) : (
+            <span className="text-white/30 text-sm">—</span>
+          )}
+        </div>
+      </div>
+
+      {diffLabel && (
+        <p className={`text-xs mt-3 text-center ${diffColour}`}>{diffLabel}</p>
+      )}
+    </div>
+  )
+}
+
+
+// ---------------------------------------------------------------------------
 // Projections table
 // ---------------------------------------------------------------------------
 
@@ -330,6 +417,9 @@ export default function ModelPredictions() {
   const [compareFetching, setCompareFetching]   = useState(false)
   const [compareError, setCompareError]         = useState(null)
 
+  // User vs model context
+  const [userContext, setUserContext] = useState(null)
+
   useLayoutEffect(() => { setPageLoading(true) }, [])
 
   // Initial load — get season then fetch latest projection
@@ -354,6 +444,14 @@ export default function ModelPredictions() {
           } else {
             throw projErr
           }
+        }
+
+        // User vs model context — best-effort, non-blocking.
+        try {
+          const ctx = await api.get(`/api/standings/${s}/elo/user-context`)
+          setUserContext(ctx)
+        } catch {
+          // No prediction or no projection yet — just leave null.
         }
       } catch (err) {
         setError(err.message)
@@ -454,6 +552,9 @@ export default function ModelPredictions() {
           </p>
         </div>
       </div>
+
+      {/* User vs model */}
+      <UserVsModel ctx={userContext} />
 
       {/* Tabs */}
       <div className="flex gap-1.5">

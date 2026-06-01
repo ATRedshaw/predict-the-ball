@@ -8,7 +8,8 @@ from models.actual_standing import ActualStanding
 from models.elo_projection import EloProjection
 from models.points_deduction import PointsDeduction
 from models.user import User
-from services.epl import get_latest_epl_season, has_season_kicked_off, get_first_kickoff, get_season_teams
+from models.user_prediction import UserPrediction
+from services.epl import get_latest_epl_season, has_season_kicked_off, get_first_kickoff, get_season_teams, compute_prediction_score
 
 standings_bp = Blueprint("standings", __name__, url_prefix="/api/standings")
 
@@ -406,4 +407,83 @@ def compare_elo_vs_actual(season: str):
             "projections": proj_snap.projections,
         },
         "comparison": comparison,
+    })
+
+
+@standings_bp.get("/<string:season>/elo/user-context")
+@jwt_required()
+def get_elo_user_context(season: str):
+    """Return the authenticated user's score vs the ELO model's indicative score.
+
+    Uses the very first ELO projection of the season (pre-season baseline) as
+    the model's "prediction".  Computes the same MAD scoring as user predictions
+    (sum of |projected_rank - actual_position| for every team) to give an
+    apples-to-apples comparison.
+
+    Also returns the ELO model's hypothetical global rank — i.e. where it would
+    sit on the leaderboard if treated as a regular player.
+
+    Args:
+        season: Season string in ``'20xx-xx'`` format.
+
+    Returns:
+        JSON with:
+            - ``elo_indicative_points``: model score against current actual table.
+            - ``elo_global_rank``: 1-based rank among all scored users + the model.
+            - ``elo_global_total``: total number of participants (users with scores + model).
+            - ``user_points``: authenticated user's current score (null if no prediction).
+            - ``user_has_prediction``: whether the user submitted a prediction.
+            - ``differential``: user_points - elo_indicative_points (null if no prediction).
+            - ``projection_updated_at``: timestamp of the baseline projection used.
+    """
+    if not has_season_kicked_off(season):
+        return jsonify({"error": "Context not available until the season kicks off"}), 403
+
+    # First-ever projection = pre-season baseline.
+    proj_snap = (
+        EloProjection.query
+        .filter_by(season=season)
+        .order_by(EloProjection.updated_at.asc())
+        .first()
+    )
+    if proj_snap is None:
+        return jsonify({"error": "No ELO projection found for this season"}), 404
+
+    actual_snap = (
+        ActualStanding.query
+        .filter_by(season=season)
+        .order_by(ActualStanding.updated_at.desc())
+        .first()
+    )
+    if actual_snap is None:
+        return jsonify({"error": "No actual standings found for this season"}), 404
+
+    # Treat the projection's sorted team order as the model's "prediction".
+    elo_prediction = [row["team"] for row in proj_snap.projections]
+    elo_score = compute_prediction_score(elo_prediction, actual_snap.standings)
+
+    # Gather all user scores for this season to determine global rank.
+    all_predictions = UserPrediction.query.filter_by(season=season).all()
+    scored_users = [p.current_points for p in all_predictions if p.current_points is not None]
+
+    # Rank the model among real users (lower score = better; ties share the better rank).
+    all_scores = sorted(scored_users + [elo_score])
+    elo_global_rank = next(i + 1 for i, s in enumerate(all_scores) if s == elo_score)
+    elo_global_total = len(all_scores)
+
+    # Authenticated user's own score.
+    user_id = get_jwt_identity()
+    user_pred = UserPrediction.query.filter_by(user_id=user_id, season=season).first()
+    user_points = user_pred.current_points if user_pred else None
+    differential = (user_points - elo_score) if user_points is not None else None
+
+    return jsonify({
+        "season": season,
+        "elo_indicative_points": elo_score,
+        "elo_global_rank": elo_global_rank,
+        "elo_global_total": elo_global_total,
+        "user_points": user_points,
+        "user_has_prediction": user_pred is not None,
+        "differential": differential,
+        "projection_updated_at": proj_snap.updated_at.isoformat() + "Z",
     })
