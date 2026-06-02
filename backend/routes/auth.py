@@ -21,6 +21,21 @@ def _send_verification_email(user: User, code: str) -> None:
         user: The User instance to verify.
         code: The plaintext 6-digit code to include in the email.
     """
+    html_body = f"""
+    <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#D1E0DD;border-radius:8px;overflow:hidden;border:1px solid #8DAA9D">
+      <div style="background:#2A2D34;padding:24px 32px">
+        <h1 style="margin:0;color:#D1E0DD;font-size:20px;font-weight:600;letter-spacing:0.5px">Predict the Ball</h1>
+      </div>
+      <div style="padding:32px">
+        <p style="margin:0 0 8px;color:#2A2D34;font-size:15px">Hi {user.first_name},</p>
+        <p style="margin:0 0 24px;color:#4A6D65;font-size:14px">Use the code below to confirm your account. It expires in 15 minutes.</p>
+        <div style="background:#2A2D34;border-radius:6px;padding:18px;text-align:center;margin-bottom:24px">
+          <span style="font-size:32px;font-weight:700;letter-spacing:10px;color:#8DAA9D;font-family:monospace">{code}</span>
+        </div>
+        <p style="margin:0;color:#4A6D65;font-size:12px">Don't share this code with anyone. If you didn't create an account, you can safely ignore this email.</p>
+      </div>
+    </div>
+    """
     msg = Message(
         subject="Your Predict the Ball verification code",
         recipients=[user.email],
@@ -30,6 +45,7 @@ def _send_verification_email(user: User, code: str) -> None:
             f"It expires in 15 minutes. Do not share it with anyone.\n\n"
             "If you didn't create an account, you can ignore this email."
         ),
+        html=html_body,
     )
     mail.send(msg)
 
@@ -41,6 +57,21 @@ def _send_reset_code_email(user: User, code: str) -> None:
         user: The User instance requesting a reset.
         code: The plaintext 6-digit code to include in the email.
     """
+    html_body = f"""
+    <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#D1E0DD;border-radius:8px;overflow:hidden;border:1px solid #8DAA9D">
+      <div style="background:#2A2D34;padding:24px 32px">
+        <h1 style="margin:0;color:#D1E0DD;font-size:20px;font-weight:600;letter-spacing:0.5px">Predict the Ball</h1>
+      </div>
+      <div style="padding:32px">
+        <p style="margin:0 0 8px;color:#2A2D34;font-size:15px">Hi {user.first_name},</p>
+        <p style="margin:0 0 24px;color:#4A6D65;font-size:14px">Use the code below to reset your password. It expires in 15 minutes.</p>
+        <div style="background:#2A2D34;border-radius:6px;padding:18px;text-align:center;margin-bottom:24px">
+          <span style="font-size:32px;font-weight:700;letter-spacing:10px;color:#8DAA9D;font-family:monospace">{code}</span>
+        </div>
+        <p style="margin:0;color:#4A6D65;font-size:12px">Don't share this code with anyone. If you didn't request a password reset, you can safely ignore this email.</p>
+      </div>
+    </div>
+    """
     msg = Message(
         subject="Your Predict the Ball password-reset code",
         recipients=[user.email],
@@ -50,6 +81,7 @@ def _send_reset_code_email(user: User, code: str) -> None:
             f"It expires in 15 minutes. Do not share it with anyone.\n\n"
             "If you didn't request a reset, you can ignore this email."
         ),
+        html=html_body,
     )
     mail.send(msg)
 
@@ -100,7 +132,7 @@ def register():
 
 
 @auth_bp.post("/verify-email")
-@limiter.limit("20 per hour")
+@limiter.limit("10 per hour")
 def verify_email():
     """Verify an email address using a 6-digit code.
 
@@ -166,7 +198,7 @@ def resend_verification():
 
 
 @auth_bp.post("/login")
-@limiter.limit("20 per minute")
+@limiter.limit("10 per minute")
 def login():
     """Authenticate a user and return a JWT access token.
 
@@ -299,7 +331,7 @@ def resend_reset_code():
 
 
 @auth_bp.post("/reset-forgotten-password")
-@limiter.limit("5 per hour")
+@limiter.limit("10 per hour")
 def reset_forgotten_password():
     """Reset a user's password using a 6-digit code from the forgot-password flow.
 
