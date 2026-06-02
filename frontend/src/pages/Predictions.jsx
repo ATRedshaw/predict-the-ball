@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import {
   DndContext,
   closestCenter,
@@ -273,9 +274,17 @@ export default function Predictions() {
               Deadline open
             </span>
           ) : (
-            <span className="bg-red-400/15 border border-red-400/30 text-red-400 text-xs px-3 py-1 rounded-full">
-              Deadline passed
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="bg-red-400/15 border border-red-400/30 text-red-400 text-xs px-3 py-1 rounded-full">
+                Deadline passed
+              </span>
+              <Link
+                to="/standings"
+                className="bg-teal/10 border border-teal/25 text-teal text-xs px-3 py-1 rounded-full hover:bg-teal/20 transition-colors"
+              >
+                Live PL Table →
+              </Link>
+            </div>
           )}
         </div>
 
