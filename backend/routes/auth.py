@@ -271,6 +271,7 @@ def me():
         "last_name": user.last_name,
         "email": user.email,
         "is_verified": user.is_verified,
+        "is_admin": user.is_admin,
         "created_at": user.created_at.isoformat(),
     }), 200
 

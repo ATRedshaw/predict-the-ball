@@ -25,6 +25,7 @@ export default function Login() {
       localStorage.setItem('access_token', data.access_token)
       const me = await api.get('/api/auth/me')
       localStorage.setItem('first_name', me.first_name)
+      localStorage.setItem('is_admin', me.is_admin ? 'true' : 'false')
       navigate('/dashboard')
     } catch (err) {
       if (err.code === 'email_not_verified') {
@@ -50,6 +51,7 @@ export default function Login() {
       localStorage.setItem('access_token', data.access_token)
       const me = await api.get('/api/auth/me')
       localStorage.setItem('first_name', me.first_name)
+      localStorage.setItem('is_admin', me.is_admin ? 'true' : 'false')
       navigate('/dashboard')
     } catch (err) {
       setError(err.message)
