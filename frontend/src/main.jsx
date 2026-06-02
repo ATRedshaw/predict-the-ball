@@ -5,6 +5,7 @@ import './index.css'
 import Layout         from './components/Layout.jsx'
 import GuestRoute     from './components/GuestRoute.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
+import AdminRoute     from './components/AdminRoute.jsx'
 import App            from './App.jsx'
 import Login          from './pages/Login.jsx'
 import SignUp         from './pages/SignUp.jsx'
@@ -14,6 +15,7 @@ import Predictions   from './pages/Predictions.jsx'
 import Leagues       from './pages/Leagues.jsx'
 import Settings      from './pages/Settings.jsx'
 import ModelPredictions from './pages/ModelPredictions.jsx'
+import Admin         from './pages/Admin.jsx'
 import NotFound       from './pages/NotFound.jsx'
 
 createRoot(document.getElementById('root')).render(
@@ -38,6 +40,11 @@ createRoot(document.getElementById('root')).render(
             <Route path="/leagues"            element={<Leagues />} />
             <Route path="/model-predictions"  element={<ModelPredictions />} />
             <Route path="/settings"           element={<Settings />} />
+          </Route>
+
+          {/* Admin only */}
+          <Route element={<AdminRoute />}>
+            <Route path="/admin" element={<Admin />} />
           </Route>
 
           {/* Catch-all */}

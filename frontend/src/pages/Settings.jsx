@@ -105,6 +105,7 @@ export default function Settings() {
     }
     localStorage.removeItem('access_token')
     localStorage.removeItem('first_name')
+    localStorage.removeItem('is_admin')
     navigate('/')
   }
 
@@ -181,6 +182,7 @@ export default function Settings() {
       await api.delete('/api/auth/me', { transfers: transferMap })
       localStorage.removeItem('access_token')
       localStorage.removeItem('first_name')
+      localStorage.removeItem('is_admin')
       navigate('/')
     } catch (err) {
       setDeleteMsg({ type: 'err', text: err.message })
