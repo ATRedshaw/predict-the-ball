@@ -9,7 +9,7 @@ import { Link } from 'react-router-dom'
  * @param {string}  [props.username]   - Display name shown when logged in.
  * @param {string}  [props.activePage] - Key of the currently active nav item (logged-in variant).
  */
-export default function Navbar({ isLoggedIn = false, username = '', activePage = '' }) {
+export default function Navbar({ isLoggedIn = false, username = '', activePage = '', isAdmin = false }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   const loggedInLinks = [
@@ -47,6 +47,18 @@ export default function Navbar({ isLoggedIn = false, username = '', activePage =
                 {label}
               </Link>
             ))}
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${
+                  activePage === 'admin'
+                    ? 'bg-teal text-white'
+                    : 'text-teal-muted hover:text-white'
+                }`}
+              >
+                Admin
+              </Link>
+            )}
             <Link to="/settings" className="ml-2 flex items-center gap-2 border border-white/10 rounded-xl px-3 py-1.5 hover:bg-white/5 transition-colors">
               <div className="w-5 h-5 rounded-full bg-teal flex items-center justify-center">
                 <span className="text-white text-[10px] font-bold">
@@ -113,6 +125,19 @@ export default function Navbar({ isLoggedIn = false, username = '', activePage =
               >
                 Settings
               </Link>
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className={`text-sm px-3 py-2 rounded-xl transition-colors ${
+                    activePage === 'admin'
+                      ? 'bg-teal text-white'
+                      : 'text-teal-muted hover:text-white hover:bg-white/5'
+                  }`}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Admin
+                </Link>
+              )}
             </>
           ) : (
             <>
