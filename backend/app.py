@@ -8,7 +8,7 @@ from sqlalchemy.engine import Engine
 
 from config import Config
 from extensions import db, jwt, mail, bcrypt, limiter
-from routes import auth_bp, leagues_bp, predictions_bp, standings_bp, users_bp
+from routes import admin_bp, auth_bp, leagues_bp, predictions_bp, standings_bp, users_bp
 
 
 @event.listens_for(Engine, "connect")
@@ -61,6 +61,7 @@ def create_app(config_class: type = Config) -> Flask:
         db.create_all()
 
     # Register blueprints
+    app.register_blueprint(admin_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(leagues_bp)
     app.register_blueprint(predictions_bp)
