@@ -633,7 +633,7 @@ export default function ModelPredictions() {
             <SectionHeading>Pin to a specific date</SectionHeading>
             <p className="text-white/30 text-xs mb-3">
               By default, actual standings are compared against the very first projection of the season - the model's view before any ball was kicked.
-              Select a date to compare both snapshots at that point in time instead.
+              Select a date to compare to a different snapshot.
             </p>
             <form onSubmit={handleCompareDateSubmit} className="flex items-center gap-3 flex-wrap">
               <input
