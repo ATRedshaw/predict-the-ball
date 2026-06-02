@@ -17,8 +17,9 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-# Ensure backend/ is on sys.path so utils is importable regardless of cwd.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# Ensure backend/modelling/ is on sys.path so the utils package is importable
+# regardless of cwd or whether this file is run directly or imported as a module.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 # utils must be imported (and ensure_custom_leagues called) before soccerdata
 # is first imported — the library reads league_dict.json at import time.
@@ -155,7 +156,13 @@ def save(df, path: Path) -> None:
     log.info("Saved %s  (%d rows)", path.name, len(df))
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Fetch all fixture/result CSVs as defined in ``retrieve.yaml``.
+
+    Probes the anchor league to determine the latest available season, then
+    fetches every configured league up to that cap.  Existing files are skipped
+    unless they are the most recent season (which may still be in progress).
+    """
     config = load_config(CONFIG_PATH)
     cfg = config["data"]
 
@@ -232,3 +239,7 @@ if __name__ == "__main__":
                 log.error("Failed %s %s: %s", alias, season, exc)
 
             start_year += 1
+
+
+if __name__ == "__main__":
+    main()

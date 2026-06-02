@@ -135,8 +135,17 @@ def build_dataset(raw_dir: Path) -> pd.DataFrame:
     return combined
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Build the preprocessed results dataset from all raw CSVs and write it to disk.
+
+    Reads every CSV under ``data/raw/``, combines them into a single chronologically
+    sorted DataFrame, and writes the result to ``data/preprocessed/results.csv``.
+    """
     dataset = build_dataset(RAW_DIR)
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     dataset.to_csv(OUTPUT_PATH, index=False)
     log.info("Wrote %d rows to %s", len(dataset), OUTPUT_PATH)
+
+
+if __name__ == "__main__":
+    main()

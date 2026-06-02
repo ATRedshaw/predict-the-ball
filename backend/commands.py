@@ -16,6 +16,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # ensure backend/ is on the path
 
+from modelling.retrieve import main as retrieve_data
+from modelling.preprocessing import main as preprocess_data
 from app import create_app
 from extensions import db
 from models.actual_standing import ActualStanding
@@ -151,6 +153,13 @@ def recalculate_prediction_scores(season: str, actual_table: list[dict]) -> None
 
 
 if __name__ == "__main__":
+    print("Step 1/3: Fetching latest fixture and result data...")
+    retrieve_data()
+
+    print("Step 2/3: Preprocessing raw CSVs into results dataset...")
+    preprocess_data()
+
+    print("Step 3/3: Saving standings snapshot...")
     app = create_app()
     with app.app_context():
         season = get_latest_epl_season()
