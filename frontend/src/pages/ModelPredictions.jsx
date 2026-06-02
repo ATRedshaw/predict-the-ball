@@ -169,7 +169,7 @@ function ordinal(n) {
 function UserVsModel({ ctx }) {
   if (!ctx) return null
 
-  const { elo_indicative_points, elo_global_rank, elo_global_total, user_points, user_has_prediction, differential } = ctx
+  const { elo_indicative_points, elo_exact_predictions, elo_global_rank, elo_global_total, user_points, user_exact_predictions, user_has_prediction, differential } = ctx
 
   const diffColour =
     differential == null  ? 'text-white/40' :
@@ -196,26 +196,23 @@ function UserVsModel({ ctx }) {
         <div className="bg-jet rounded-xl px-4 py-3 flex flex-col gap-0.5">
           <span className="text-white/30 text-[10px] uppercase tracking-widest">Model pts</span>
           <span className="text-white text-xl font-bold font-mono">{elo_indicative_points ?? '—'}</span>
-        </div>
-
-        {/* Model global rank */}
-        <div className="bg-jet rounded-xl px-4 py-3 flex flex-col gap-0.5">
-          <span className="text-white/30 text-[10px] uppercase tracking-widest">Theoretical Global Rank</span>
-          <span className="text-white text-xl font-bold font-mono">
-            {elo_global_rank != null ? ordinal(elo_global_rank) : '—'}
-            {elo_global_total != null && (
-              <span className="text-white/25 text-sm font-normal"> / {elo_global_total}</span>
-            )}
-          </span>
+          {elo_exact_predictions != null && (
+            <span className="text-teal-muted text-[10px] font-mono">{elo_exact_predictions} exact</span>
+          )}
         </div>
 
         {/* User score */}
         <div className="bg-jet rounded-xl px-4 py-3 flex flex-col gap-0.5">
           <span className="text-white/30 text-[10px] uppercase tracking-widest">Your pts</span>
           {user_has_prediction ? (
-            <span className="text-white text-xl font-bold font-mono">
-              {user_points ?? <span className="text-white/30 text-sm font-normal">pending</span>}
-            </span>
+            <>
+              <span className="text-white text-xl font-bold font-mono">
+                {user_points ?? <span className="text-white/30 text-sm font-normal">pending</span>}
+              </span>
+              {user_exact_predictions != null && (
+                <span className="text-teal-muted text-[10px] font-mono">{user_exact_predictions} exact</span>
+              )}
+            </>
           ) : (
             <span className="text-white/30 text-sm">no prediction</span>
           )}
@@ -231,6 +228,17 @@ function UserVsModel({ ctx }) {
           ) : (
             <span className="text-white/30 text-sm">—</span>
           )}
+        </div>
+
+        {/* Model global rank */}
+        <div className="bg-jet rounded-xl px-4 py-3 flex flex-col gap-0.5">
+          <span className="text-white/30 text-[10px] uppercase tracking-widest">Indicative Model Rank</span>
+          <span className="text-white text-xl font-bold font-mono">
+            {elo_global_rank != null ? ordinal(elo_global_rank) : '—'}
+            {elo_global_total != null && (
+              <span className="text-white/25 text-sm font-normal"> / {elo_global_total}</span>
+            )}
+          </span>
         </div>
       </div>
 

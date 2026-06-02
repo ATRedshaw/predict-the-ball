@@ -178,6 +178,23 @@ def compute_prediction_score(predicted: list[str], actual_standings: list[dict])
     return total
 
 
+def compute_exact_predictions(predicted: list[str], actual_standings: list[dict]) -> int:
+    """Count teams placed at exactly the correct position.
+
+    Args:
+        predicted: Ordered list of team names, index 0 = predicted champions.
+        actual_standings: List of standing dicts with ``'team'`` and ``'position'`` keys.
+
+    Returns:
+        Number of teams where predicted position equals actual position.
+    """
+    actual_pos = {row["team"]: row["position"] for row in actual_standings}
+    return sum(
+        1 for i, team in enumerate(predicted)
+        if actual_pos.get(team) == i + 1
+    )
+
+
 def calculate_epl_table(
     season: str,
     kicked_off: bool,

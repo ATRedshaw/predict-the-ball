@@ -9,7 +9,7 @@ from models.elo_projection import EloProjection
 from models.points_deduction import PointsDeduction
 from models.user import User
 from models.user_prediction import UserPrediction
-from services.epl import get_latest_epl_season, has_season_kicked_off, get_first_kickoff, get_season_teams, compute_prediction_score
+from services.epl import get_latest_epl_season, has_season_kicked_off, get_first_kickoff, get_season_teams, compute_prediction_score, compute_exact_predictions
 
 standings_bp = Blueprint("standings", __name__, url_prefix="/api/standings")
 
@@ -461,28 +461,39 @@ def get_elo_user_context(season: str):
     # Treat the projection's sorted team order as the model's "prediction".
     elo_prediction = [row["team"] for row in proj_snap.projections]
     elo_score = compute_prediction_score(elo_prediction, actual_snap.standings)
+    elo_exact = compute_exact_predictions(elo_prediction, actual_snap.standings)
 
     # Gather all user scores for this season to determine global rank.
     all_predictions = UserPrediction.query.filter_by(season=season).all()
-    scored_users = [p.current_points for p in all_predictions if p.current_points is not None]
+    scored_users = [
+        (p.current_points, p.exact_predictions or 0)
+        for p in all_predictions
+        if p.current_points is not None
+    ]
 
-    # Rank the model among real users (lower score = better; ties share the better rank).
-    all_scores = sorted(scored_users + [elo_score])
-    elo_global_rank = next(i + 1 for i, s in enumerate(all_scores) if s == elo_score)
+    # Rank the model among real users — lower score wins; ties broken by exact predictions descending.
+    all_scores = sorted(scored_users + [(elo_score, elo_exact)], key=lambda x: (x[0], -x[1]))
     elo_global_total = len(all_scores)
+    elo_global_rank = sum(
+        1 for pts, exact in all_scores
+        if pts < elo_score or (pts == elo_score and exact > elo_exact)
+    ) + 1
 
     # Authenticated user's own score.
     user_id = get_jwt_identity()
     user_pred = UserPrediction.query.filter_by(user_id=user_id, season=season).first()
     user_points = user_pred.current_points if user_pred else None
+    user_exact  = user_pred.exact_predictions if user_pred else None
     differential = (user_points - elo_score) if user_points is not None else None
 
     return jsonify({
         "season": season,
         "elo_indicative_points": elo_score,
+        "elo_exact_predictions": elo_exact,
         "elo_global_rank": elo_global_rank,
         "elo_global_total": elo_global_total,
         "user_points": user_points,
+        "user_exact_predictions": user_exact,
         "user_has_prediction": user_pred is not None,
         "differential": differential,
         "projection_updated_at": proj_snap.updated_at.isoformat() + "Z",

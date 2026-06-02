@@ -322,11 +322,17 @@ function MemberPredictionView({ member, season, kickedOff, currentUserId, onBack
           {kickedOff && viewedSeasonStats && (
             <div className="bg-jet-dark rounded-2xl p-4 mb-4">
               <p className="text-teal-muted text-xs uppercase tracking-widest mb-3">{season}</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="bg-jet rounded-xl px-4 py-3">
                   <p className="text-white/40 text-xs mb-1">Score</p>
                   <p className="text-white font-mono font-bold text-lg">
                     {viewedSeasonStats.score != null ? `${viewedSeasonStats.score} pts` : '—'}
+                  </p>
+                </div>
+                <div className="bg-jet rounded-xl px-4 py-3">
+                  <p className="text-white/40 text-xs mb-1">Exact</p>
+                  <p className="text-white font-mono font-bold text-lg">
+                    {viewedSeasonStats.exact_predictions != null ? viewedSeasonStats.exact_predictions : '—'}
                   </p>
                 </div>
                 <div className="bg-jet rounded-xl px-4 py-3">
@@ -529,11 +535,29 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
     )
   }
 
-  // Ranked list — sort is applied server-side after kick-off; before that, members
-  // arrive in join order, which is fine.
-  const ranked = league.members.map((m, i) => ({
+  // Build tie-aware rank map from the server-sorted member list.
+  // Two players with identical points AND exact predictions share the same rank.
+  const rankMap = (() => {
+    const map = new Map()
+    if (!league.kicked_off) return map
+    const scored = league.members.filter(m => m.current_points != null)
+    let rank = 1
+    for (let i = 0; i < scored.length; i++) {
+      if (i > 0) {
+        const prev = scored[i - 1]
+        const curr = scored[i]
+        if (curr.current_points !== prev.current_points || curr.exact_predictions !== prev.exact_predictions) {
+          rank = i + 1
+        }
+      }
+      map.set(scored[i].user_id, rank)
+    }
+    return map
+  })()
+
+  const ranked = league.members.map(m => ({
     ...m,
-    displayRank: league.kicked_off && m.current_points != null ? i + 1 : null,
+    displayRank: rankMap.get(m.user_id) ?? null,
   }))
 
   if (viewingMember) {
@@ -651,7 +675,14 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
                 {/* prediction status / score */}
                 {league.kicked_off ? (
                   member.current_points != null
-                    ? <span className="text-white font-mono text-sm font-bold shrink-0">{member.current_points} pts</span>
+                    ? (
+                      <div className="text-right shrink-0">
+                        <p className="text-white font-mono text-sm font-bold">{member.current_points} pts</p>
+                        {member.exact_predictions != null && (
+                          <p className="text-teal-muted font-mono text-[10px]">{member.exact_predictions} exact</p>
+                        )}
+                      </div>
+                    )
                     : member.has_prediction
                       ? <span className="text-white/30 text-xs shrink-0 italic">Score pending</span>
                       : <span className="text-white/30 text-xs shrink-0 italic">No prediction</span>
