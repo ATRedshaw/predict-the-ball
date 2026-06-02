@@ -14,9 +14,8 @@ users_bp = Blueprint("users", __name__, url_prefix="/api/users")
 def _global_rank(season: str, user_id: int) -> dict | None:
     """Return the user's rank among all predictors for a given season.
 
-    Rank is computed as position in ascending ``current_points`` order (lowest
-    score wins). Only counts users who have a numeric points value — i.e. the
-    season has kicked off and points have been calculated.
+    Ordered by points ascending then exact_predictions descending. Players with
+    identical points and exact counts share the same rank.
 
     Args:
         season: Season string in ``'20xx-xx'`` format.
@@ -29,21 +28,32 @@ def _global_rank(season: str, user_id: int) -> dict | None:
     predictions = (
         UserPrediction.query
         .filter(UserPrediction.season == season, UserPrediction.current_points.isnot(None))
-        .order_by(UserPrediction.current_points.asc())
         .all()
     )
     if not predictions:
         return None
 
-    for i, p in enumerate(predictions, start=1):
-        if p.user_id == user_id:
-            return {"rank": i, "total": len(predictions)}
+    user_pred = next((p for p in predictions if p.user_id == user_id), None)
+    if user_pred is None:
+        return None
 
-    return None
+    user_pts   = user_pred.current_points
+    user_exact = user_pred.exact_predictions or 0
+
+    rank = sum(
+        1 for p in predictions
+        if p.current_points < user_pts
+        or (p.current_points == user_pts and (p.exact_predictions or 0) > user_exact)
+    ) + 1
+
+    return {"rank": rank, "total": len(predictions)}
 
 
 def _league_rank(league_id: int, user_id: int, season: str) -> dict | None:
     """Return the user's rank within a specific league.
+
+    Ordered by points ascending then exact_predictions descending. Tied
+    players share the same rank.
 
     Args:
         league_id: ID of the league.
@@ -58,18 +68,23 @@ def _league_rank(league_id: int, user_id: int, season: str) -> dict | None:
     for m in members:
         pred = UserPrediction.query.filter_by(user_id=m.user_id, season=season).first()
         if pred and pred.current_points is not None:
-            scored.append((m.user_id, pred.current_points))
+            scored.append((m.user_id, pred.current_points, pred.exact_predictions or 0))
 
     if not scored:
         return None
 
-    scored.sort(key=lambda x: x[1])
     total = len(members)
-    for i, (uid, _) in enumerate(scored, start=1):
-        if uid == user_id:
-            return {"rank": i, "total": total}
+    user_entry = next((e for e in scored if e[0] == user_id), None)
+    if user_entry is None:
+        return None
 
-    return None
+    user_pts, user_exact = user_entry[1], user_entry[2]
+    rank = sum(
+        1 for _, pts, exact in scored
+        if pts < user_pts or (pts == user_pts and exact > user_exact)
+    ) + 1
+
+    return {"rank": rank, "total": total}
 
 
 def _season_summary(season: str, user_id: int, kicked_off: bool) -> dict:
@@ -89,6 +104,7 @@ def _season_summary(season: str, user_id: int, kicked_off: bool) -> dict:
         prediction_payload = {
             "standings": prediction.standings if kicked_off else None,
             "points": prediction.current_points,
+            "exact_predictions": prediction.exact_predictions,
             "submitted_at": prediction.submitted_at.isoformat(),
             "updated_at": prediction.updated_at.isoformat() if prediction.updated_at else None,
         }
@@ -270,6 +286,7 @@ def get_user_profile(user_id: int):
         return {
             "season": season,
             "score": prediction.current_points if prediction else None,
+            "exact_predictions": prediction.exact_predictions if prediction else None,
             "global_rank": global_rank,
             "has_prediction": prediction is not None,
             "prediction_standings": prediction.standings if (prediction and ko) else None,

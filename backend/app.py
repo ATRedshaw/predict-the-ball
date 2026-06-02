@@ -3,7 +3,7 @@ import sqlite3
 from flask import Flask
 from flask_cors import CORS
 from pathlib import Path
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 
 from config import Config

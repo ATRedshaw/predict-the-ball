@@ -19,6 +19,8 @@ class UserPrediction(db.Model):
     # Null before the season deadline passes; once kicked off, the sum of
     # |predicted_position - actual_position| across all 20 teams.
     current_points = db.Column(db.Integer, nullable=True)
+    # Count of teams placed at exactly the correct position (differential = 0).
+    exact_predictions = db.Column(db.Integer, nullable=True)
     submitted_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, onupdate=lambda: datetime.now(timezone.utc))
 

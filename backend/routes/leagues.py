@@ -87,6 +87,7 @@ def _member_payload(member: LeagueMember, season: str, kicked_off: bool) -> dict
         "joined_at": member.joined_at.isoformat(),
         "has_prediction": prediction is not None,
         "current_points": prediction.current_points if (prediction and kicked_off) else None,
+        "exact_predictions": prediction.exact_predictions if (prediction and kicked_off) else None,
         "standings": prediction.standings if (prediction and kicked_off) else None,
     }
 
@@ -195,7 +196,11 @@ def get_league(league_id: int):
     member_list = [_member_payload(m, league.season, kicked_off) for m in members]
 
     if kicked_off:
-        member_list.sort(key=lambda x: (x["current_points"] is None, x["current_points"] or 0))
+        member_list.sort(key=lambda x: (
+            x["current_points"] is None,
+            x["current_points"] if x["current_points"] is not None else 0,
+            -(x["exact_predictions"] or 0),
+        ))
 
     return jsonify({
         "id": league.id,

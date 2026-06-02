@@ -23,6 +23,7 @@ from models.points_deduction import PointsDeduction
 from models.user_prediction import UserPrediction
 from services.epl import (
     calculate_epl_table,
+    compute_exact_predictions,
     compute_prediction_score,
     get_latest_epl_season,
     has_season_kicked_off,
@@ -124,6 +125,7 @@ def reset_prediction_scores(season: str) -> None:
     predictions = UserPrediction.query.filter_by(season=season).all()
     for prediction in predictions:
         prediction.current_points = None
+        prediction.exact_predictions = None
     db.session.commit()
     print(f"Reset points to null for {len(predictions)} prediction(s) in {season}.")
 
@@ -142,6 +144,7 @@ def recalculate_prediction_scores(season: str, actual_table: list[dict]) -> None
     predictions = UserPrediction.query.filter_by(season=season).all()
     for prediction in predictions:
         prediction.current_points = compute_prediction_score(prediction.standings, actual_table)
+        prediction.exact_predictions = compute_exact_predictions(prediction.standings, actual_table)
     db.session.commit()
     print(f"Recalculated points for {len(predictions)} prediction(s) in {season}.")
 
