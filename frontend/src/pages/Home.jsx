@@ -148,6 +148,96 @@ function PredictionCard({ prediction, season, kickedOff, actualLookup }) {
 }
 
 // ---------------------------------------------------------------------------
+// Compact actual standings card (used on dashboard)
+// ---------------------------------------------------------------------------
+
+function ActualStandingsCard({ standings, updatedAt, kickedOff, season }) {
+  if (!kickedOff) {
+    return (
+      <EmptyState
+        message="Standings will appear once the season kicks off."
+        cta="Submit your prediction"
+        to="/predictions"
+      />
+    )
+  }
+
+  // standings is the full array from the API: [{ position, team, points, ... }]
+  const rows = standings
+    ? [...standings].sort((a, b) => a.position - b.position)
+    : []
+
+  if (rows.length === 0) {
+    return (
+      <div className="bg-jet-dark rounded-2xl px-5 py-6 text-center">
+        <p className="text-white/30 text-xs">No standings data available yet.</p>
+      </div>
+    )
+  }
+
+  const preview = rows.slice(0, 5)
+
+  const updatedLabel = updatedAt
+    ? new Date(updatedAt).toLocaleString('en-GB', {
+        day: 'numeric', month: 'short', year: 'numeric',
+      })
+    : null
+
+  return (
+    <div className="bg-jet-dark rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-white font-semibold text-sm">Live PL table</p>
+          {updatedLabel && (
+            <p className="text-white/30 text-xs mt-0.5">Updated {updatedLabel}</p>
+          )}
+        </div>
+        <Link
+          to="/standings"
+          className="text-xs text-teal-muted border border-teal/30 px-3 py-1.5 rounded-lg hover:bg-teal/10 transition-colors"
+        >
+          Full table
+        </Link>
+      </div>
+      <div className="grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem] gap-x-3 px-2 pb-1.5">
+        <span className="text-white/30 text-[10px] uppercase tracking-widest text-right">#</span>
+        <span className="text-white/30 text-[10px] uppercase tracking-widest">Team</span>
+        <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">P</span>
+        <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Pts</span>
+      </div>
+      <div className="space-y-1.5">
+        {preview.map(({ team, position, played, points }) => {
+          const posColour =
+            position === 1  ? 'text-yellow-400' :
+            position >= 18  ? 'text-red-400'    :
+            'text-white/40'
+
+          return (
+            <div
+              key={team}
+              className="grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem] gap-x-3 px-2 py-1.5 rounded-lg bg-jet items-center"
+            >
+              <span className={`font-mono text-xs text-right shrink-0 ${posColour}`}>{position}</span>
+              <span className="text-white text-xs truncate">{team}</span>
+              <span className="text-white/40 text-xs text-center font-mono">{played ?? '—'}</span>
+              <span className="text-white font-bold text-xs text-center font-mono">{points ?? '—'}</span>
+            </div>
+          )
+        })}
+      </div>
+      {rows.length > 5 && (
+        <Link
+          to="/standings"
+          className="block text-center text-white/30 text-[10px] mt-2 hover:text-teal-muted transition-colors"
+        >
+          + {rows.length - 5} more · view full table
+        </Link>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // League card
 // ---------------------------------------------------------------------------
 
@@ -315,6 +405,8 @@ export default function Home() {
   const [error, setError] = useState(null)
   const [expandedSeason, setExpandedSeason] = useState(null)
   const [actualLookup, setActualLookup] = useState(null)
+  const [actualStandingsFull, setActualStandingsFull] = useState(null)
+  const [actualStandingsUpdatedAt, setActualStandingsUpdatedAt] = useState(null)
 
   useLayoutEffect(() => {
     setPageLoading(true)
@@ -328,9 +420,12 @@ export default function Home() {
         if (dashboard.current_season && dashboard.kicked_off) {
           api.get(`/api/standings/${dashboard.current_season}/actual/latest`)
             .then(d => {
+              const rows = d.standings ?? []
               const lookup = {}
-              ;(d.standings ?? []).forEach(({ position, team }) => { lookup[team] = position })
+              rows.forEach(({ position, team }) => { lookup[team] = position })
               setActualLookup(lookup)
+              setActualStandingsFull(rows)
+              setActualStandingsUpdatedAt(d.updated_at ?? null)
             })
             .catch(() => {})
         }
@@ -428,7 +523,7 @@ export default function Home() {
         />
       </div>
 
-      {/* ── Two-column grid ── */}
+      {/* ── Two-column grid: prediction + standings ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* Prediction */}
@@ -442,33 +537,54 @@ export default function Home() {
           />
         </div>
 
-        {/* Leagues */}
+        {/* Actual standings (compact) */}
         <div>
           <div className="mb-3">
-            <SectionHeading>Current leagues</SectionHeading>
+            <SectionHeading>Current standings · {current_season}</SectionHeading>
           </div>
-          {currentLeagues.length > 0 ? (
-            <div className="space-y-2">
-              {currentLeagues.slice(0, 4).map(l => (
-                <LeagueCard key={l.id} league={l} kickedOff={kicked_off} />
-              ))}
-              {currentLeagues.length > 4 && (
-                <Link
-                  to="/leagues"
-                  className="block text-center text-white/30 text-[10px] mt-1 hover:text-teal-muted transition-colors"
-                >
-                  + {currentLeagues.length - 4} more · view all leagues
-                </Link>
-              )}
-            </div>
-          ) : (
-            <EmptyState
-              message="You're not in any leagues yet."
-              cta="Create or join a league"
+          <ActualStandingsCard
+            standings={actualStandingsFull}
+            updatedAt={actualStandingsUpdatedAt}
+            kickedOff={kicked_off}
+            season={current_season}
+          />
+        </div>
+      </div>
+
+      {/* ── Leagues (full width below) ── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <SectionHeading>Current leagues</SectionHeading>
+          {currentLeagues.length > 0 && (
+            <Link
               to="/leagues"
-            />
+              className="text-teal text-[10px] font-medium hover:text-teal-muted transition-colors -mt-3"
+            >
+              All leagues →
+            </Link>
           )}
         </div>
+        {currentLeagues.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {currentLeagues.slice(0, 6).map(l => (
+              <LeagueCard key={l.id} league={l} kickedOff={kicked_off} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            message="You're not in any leagues yet."
+            cta="Create or join a league"
+            to="/leagues"
+          />
+        )}
+        {currentLeagues.length > 6 && (
+          <Link
+            to="/leagues"
+            className="block text-center text-white/30 text-[10px] mt-2 hover:text-teal-muted transition-colors"
+          >
+            + {currentLeagues.length - 6} more · view all leagues
+          </Link>
+        )}
       </div>
 
       {/* ── Previous seasons ── */}

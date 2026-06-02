@@ -7,6 +7,7 @@ const PATH_TO_PAGE = {
   '/':                   'landing',
   '/dashboard':          'dashboard',
   '/predictions':        'predictions',
+  '/standings':          'standings',
   '/leagues':            'leagues',
   '/model-predictions':  'model-predictions',
   '/settings':           'settings',

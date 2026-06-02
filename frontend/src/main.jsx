@@ -15,6 +15,7 @@ import Predictions   from './pages/Predictions.jsx'
 import Leagues       from './pages/Leagues.jsx'
 import Settings      from './pages/Settings.jsx'
 import ModelPredictions from './pages/ModelPredictions.jsx'
+import Standings     from './pages/Standings.jsx'
 import Admin         from './pages/Admin.jsx'
 import NotFound       from './pages/NotFound.jsx'
 
@@ -37,6 +38,7 @@ createRoot(document.getElementById('root')).render(
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard"          element={<Home />} />
             <Route path="/predictions"        element={<Predictions />} />
+            <Route path="/standings"          element={<Standings />} />
             <Route path="/leagues"            element={<Leagues />} />
             <Route path="/model-predictions"  element={<ModelPredictions />} />
             <Route path="/settings"           element={<Settings />} />
