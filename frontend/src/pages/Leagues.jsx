@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { usePageLoading } from '../components/PageLoadingContext'
 
@@ -934,6 +935,7 @@ function LeagueList({ leagues, season, onSelect, onCreated, onJoined }) {
 
 export default function Leagues() {
   const { setPageLoading } = usePageLoading()
+  const location = useLocation()
   const [leagues, setLeagues]       = useState([])
   const [season, setSeason]         = useState(null)
   const [currentUserId, setCurrentUserId] = useState(null)
@@ -955,7 +957,15 @@ export default function Leagues() {
         setSeason(s)
         setLeagues(leagueList)
         setCurrentUserId(me.id)
-        setPageState('list')
+
+        const params = new URLSearchParams(location.search)
+        const targetId = Number(params.get('id'))
+        if (targetId && leagueList.some(l => l.id === targetId)) {
+          setSelectedId(targetId)
+          setPageState('detail')
+        } else {
+          setPageState('list')
+        }
       } catch (err) {
         console.error(err)
         setPageState('error')
