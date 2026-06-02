@@ -483,14 +483,17 @@ def get_elo_user_context(season: str):
     user_id = get_jwt_identity()
     user_pred = UserPrediction.query.filter_by(user_id=user_id, season=season).first()
     user_points = user_pred.current_points if user_pred else None
+    user_exact  = user_pred.exact_predictions if user_pred else None
     differential = (user_points - elo_score) if user_points is not None else None
 
     return jsonify({
         "season": season,
         "elo_indicative_points": elo_score,
+        "elo_exact_predictions": elo_exact,
         "elo_global_rank": elo_global_rank,
         "elo_global_total": elo_global_total,
         "user_points": user_points,
+        "user_exact_predictions": user_exact,
         "user_has_prediction": user_pred is not None,
         "differential": differential,
         "projection_updated_at": proj_snap.updated_at.isoformat() + "Z",
