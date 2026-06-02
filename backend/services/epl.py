@@ -76,6 +76,8 @@ def has_season_kicked_off(season: str) -> bool:
         return False
 
     df = df[["date", "time"]].dropna()
+    df["date"] = df["date"].astype(str)
+    df["time"] = df["time"].astype(str)
     df = df[df["date"].str.strip() != ""]
     df["kickoff"] = pd.to_datetime(
         df["date"].str.strip() + " " + df["time"].str.strip(),
@@ -113,6 +115,8 @@ def get_first_kickoff(season: str) -> datetime | None:
         return None
 
     df = df[["date", "time"]].dropna()
+    df["date"] = df["date"].astype(str)
+    df["time"] = df["time"].astype(str)
     df["kickoff"] = pd.to_datetime(
         df["date"].str.strip() + " " + df["time"].str.strip(),
         errors="coerce",
