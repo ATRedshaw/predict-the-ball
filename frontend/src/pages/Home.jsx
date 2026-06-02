@@ -185,19 +185,11 @@ function ActualStandingsCard({ standings, updatedAt, kickedOff, season }) {
 
   return (
     <div className="bg-jet-dark rounded-2xl p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-white font-semibold text-sm">Live PL table</p>
-          {updatedLabel && (
-            <p className="text-white/30 text-xs mt-0.5">Updated {updatedLabel}</p>
-          )}
-        </div>
-        <Link
-          to="/standings"
-          className="text-xs text-teal-muted border border-teal/30 px-3 py-1.5 rounded-lg hover:bg-teal/10 transition-colors"
-        >
-          Full table
-        </Link>
+      <div className="mb-4">
+        <p className="text-white font-semibold text-sm">Live PL table</p>
+        {updatedLabel && (
+          <p className="text-white/30 text-xs mt-0.5">Updated {updatedLabel}</p>
+        )}
       </div>
       <div className="grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem] gap-x-3 px-2 pb-1.5">
         <span className="text-white/30 text-[10px] uppercase tracking-widest text-right">#</span>
