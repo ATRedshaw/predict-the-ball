@@ -11,10 +11,14 @@ Run from the backend/ directory:
 """
 
 import logging
+import sys
 from pathlib import Path
 
 import pandas as pd
 import yaml
+
+# Ensure backend/ is on sys.path so utils is importable regardless of cwd.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # utils must be imported (and ensure_custom_leagues called) before soccerdata
 # is first imported — the library reads league_dict.json at import time.
@@ -26,10 +30,10 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-CONFIG_PATH = Path(__file__).parent / "config/retrieve.yaml"
+_HERE = Path(__file__).resolve().parent
+CONFIG_PATH = _HERE / "config" / "retrieve.yaml"
 
-# Script is run from backend/, so paths in config are relative to that.
-BACKEND_DIR = Path(__file__).parent.parent
+BACKEND_DIR = _HERE.parent
 
 
 def load_config(path: Path) -> dict:

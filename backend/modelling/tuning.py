@@ -45,9 +45,10 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-DATA_PATH = Path(__file__).parent / "data" / "preprocessed" / "results.csv"
-OUTPUT_PATH = Path(__file__).parent / "data" / "params" / "elo.json"
-CONFIG_PATH = Path(__file__).parent / "config" / "tuning.yaml"
+_HERE = Path(__file__).resolve().parent
+DATA_PATH = _HERE / "data" / "preprocessed" / "results.csv"
+OUTPUT_PATH = _HERE / "data" / "params" / "elo.json"
+CONFIG_PATH = _HERE / "config" / "tuning.yaml"
 
 with open(CONFIG_PATH) as _f:
     _cfg = yaml.safe_load(_f)

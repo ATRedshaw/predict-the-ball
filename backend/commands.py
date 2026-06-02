@@ -12,8 +12,9 @@ Available actions (determined by __main__ block below):
 
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
-sys.path.insert(0, __file__.rsplit("/", 1)[0])  # ensure backend/ is on the path
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # ensure backend/ is on the path
 
 from app import create_app
 from extensions import db

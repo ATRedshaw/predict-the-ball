@@ -14,8 +14,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-DATA_PATH = Path(__file__).parent / "data" / "preprocessed" / "results.csv"
-PARAMS_PATH = Path(__file__).parent / "data" / "params" / "elo.json"
+_HERE = Path(__file__).resolve().parent
+DATA_PATH = _HERE / "data" / "preprocessed" / "results.csv"
+PARAMS_PATH = _HERE / "data" / "params" / "elo.json"
 
 
 def _expected_score(rating_home: float, rating_away: float, home_advantage: float) -> float:

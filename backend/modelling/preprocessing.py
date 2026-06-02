@@ -25,8 +25,9 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-RAW_DIR = Path(__file__).parent / "data" / "raw"
-OUTPUT_PATH = Path(__file__).parent / "data" / "preprocessed" / "results.csv"
+_HERE = Path(__file__).resolve().parent
+RAW_DIR = _HERE / "data" / "raw"
+OUTPUT_PATH = _HERE / "data" / "preprocessed" / "results.csv"
 
 # Matches optional penalty prefix/suffix, e.g. "(4) 1–1 (3)" or plain "2–1".
 # The en-dash (–) and plain hyphen (-) are both handled.
