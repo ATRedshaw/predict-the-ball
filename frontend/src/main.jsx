@@ -17,6 +17,8 @@ import Settings      from './pages/Settings.jsx'
 import ModelPredictions from './pages/ModelPredictions.jsx'
 import Standings     from './pages/Standings.jsx'
 import Admin         from './pages/Admin.jsx'
+import Privacy       from './pages/Privacy.jsx'
+import Terms         from './pages/Terms.jsx'
 import NotFound       from './pages/NotFound.jsx'
 
 createRoot(document.getElementById('root')).render(
@@ -26,6 +28,8 @@ createRoot(document.getElementById('root')).render(
         <Route element={<Layout />}>
           {/* Public */}
           <Route path="/" element={<App />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms"   element={<Terms />}   />
 
           {/* Unauthenticated only */}
           <Route element={<GuestRoute />}>

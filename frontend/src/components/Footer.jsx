@@ -10,7 +10,7 @@ export default function Footer() {
       <div className="flex gap-4">
         <a href="/privacy" className="hover:text-teal-muted transition-colors">Privacy</a>
         <a href="/terms"   className="hover:text-teal-muted transition-colors">Terms</a>
-        <a href="/contact" className="hover:text-teal-muted transition-colors">Contact</a>
+        <a href="mailto:predict.the.ball.app@gmail.com" className="hover:text-teal-muted transition-colors">Contact</a>
       </div>
     </footer>
   );
