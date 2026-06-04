@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  predict-the-ball:
+    build: ./backend
+    container_name: ptb-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/instance:/app/instance
+      - ./backend/modelling/data:/app/modelling/data
