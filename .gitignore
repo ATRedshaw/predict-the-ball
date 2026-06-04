@@ -11,8 +11,7 @@ backend/modelling/modelling_config.yaml
 temp.py
 migrations/
 instance/
-# Below is a testing file, not actual data to be committed - Line to be removed upon completion
-backend/modelling/data/raw/EPL/EPL_2026_2027.csv
+backend/modelling/data/
 
 # Frontend
 logs
