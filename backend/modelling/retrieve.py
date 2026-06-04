@@ -3,8 +3,14 @@ data from FBref.
 
 Fetches the game schedule (fixtures and results) per league per season as
 defined in modelling/config/retrieve.yaml.  Each combination is saved as an
-individual CSV, e.g. EPL_2016_2017.csv.  Files that already exist are skipped,
-so the script is safe to re-run after interruption.
+individual CSV, e.g. EPL_2016_2017.csv.
+
+Re-run behaviour:
+- The anchor league is probed first to establish the latest available season.
+- For every league, completed seasons with an existing file are skipped.
+- The most recently saved season is always re-fetched (may be in progress).
+- Every fetched result is date-validated before writing; mismatched seasons are
+  discarded without touching any existing file.
 
 Run from the backend/ directory:
     python modelling/retrieve.py
@@ -159,14 +165,20 @@ def save(df, path: Path) -> None:
 def main() -> None:
     """Fetch all fixture/result CSVs as defined in ``retrieve.yaml``.
 
-    Probes the anchor league to determine the latest available season, then
-    fetches every configured league up to that cap.  Existing files are skipped
-    unless they are the most recent season (which may still be in progress).
+    Phase 1 probes the anchor league to find the latest season with real data;
+    that year caps what is fetched for all leagues in phase 2.
+
+    Re-run behaviour:
+    - Seasons before the last confirmed season are skipped if a file already exists.
+    - The last confirmed season is always re-fetched (may still be in progress).
+    - The season immediately after is probed to check whether it has started.
+    - Every fetched DataFrame is validated: dates must contain at least one year
+      matching the expected season (e.g. 2025 or 2026 for the 2025-26 season).
+      If the check fails the file is neither created nor overwritten.
     """
     config = load_config(CONFIG_PATH)
     cfg = config["data"]
 
-    # Register any custom leagues before soccerdata is imported.
     ensure_custom_leagues(config.get("custom_leagues", {}))
 
     leagues = cfg["leagues"]
@@ -174,71 +186,100 @@ def main() -> None:
     output_dir = BACKEND_DIR / cfg["output_dir"]
     season_start = cfg["season_start"]
     anchor_league = cfg["anchor_league"]
-
-    # Phase 1: probe the anchor league season by season, validating dates, to
-    # find the latest season with real data.  This becomes the cap for all leagues.
-    log.info("Probing %s to determine latest available season ...", anchor_league)
     anchor_alias = aliases[anchor_league]
+    anchor_dir = output_dir / anchor_alias
+
+    # --- Phase 1: determine latest available season via the anchor league ---
+    # Walk forward from season_start.  Seasons with an existing file (that are
+    # not the most recently saved one) are assumed valid and skipped.  The most
+    # recently saved season is always re-fetched in case it is still in progress,
+    # and we keep probing one year beyond it to catch a newly-started season.
+    log.info("Probing %s to determine latest available season ...", anchor_alias)
+
+    anchor_last = last_saved_year(anchor_dir, anchor_alias)
     latest_start_year = season_start - 1
     probe_year = season_start
 
     while True:
-        probe_path = output_dir / anchor_alias / season_filename(anchor_alias, probe_year)
+        probe_path = anchor_dir / season_filename(anchor_alias, probe_year)
         season = season_str(probe_year)
-        if probe_path.exists():
+
+        # Existing file that is not the most recently saved one: treat as confirmed.
+        if probe_path.exists() and probe_year != anchor_last:
             latest_start_year = probe_year
             probe_year += 1
             continue
+
         log.info("Probing %s %s ...", anchor_alias, season)
         try:
             df = fetch_season(anchor_league, probe_year)
-            if not is_valid_season(df, probe_year):
-                log.info(
-                    "%s %s dates outside %d–%d — latest season is %s",
-                    anchor_alias, season, probe_year, probe_year + 1,
-                    season_str(latest_start_year),
-                )
-                break
-            latest_start_year = probe_year
-            save(df, probe_path)
         except Exception as exc:
-            log.info("No data for %s %s (%s) — latest season is %s",
-                     anchor_alias, season, exc, season_str(latest_start_year))
+            log.info(
+                "No data for %s %s (%s) — latest season is %s",
+                anchor_alias, season, exc, season_str(latest_start_year),
+            )
             break
+
+        if not is_valid_season(df, probe_year):
+            log.info(
+                "%s %s dates outside %d–%d — latest season is %s",
+                anchor_alias, season, probe_year, probe_year + 1,
+                season_str(latest_start_year),
+            )
+            break
+
+        latest_start_year = probe_year
+        save(df, probe_path)
+        # Update anchor_last so the next iteration doesn't re-fetch the file
+        # we just wrote.
+        anchor_last = probe_year
         probe_year += 1
 
     log.info("Latest available season: %s", season_str(latest_start_year))
 
-    # Phase 2: fetch all leagues up to the confirmed cap.
-    # The most recent file per league is always re-fetched in case the season
-    # is still in progress and new results have been added.
+    if latest_start_year < season_start:
+        log.error("No valid data found for anchor league %s — aborting.", anchor_alias)
+        return
+
+    # --- Phase 2: fetch all leagues up to latest_start_year ---
+    # For each league:
+    #   - Seasons before the last saved one: skip if the file exists.
+    #   - The last saved season (or any missing season): fetch and validate.
+    #   - If date validation fails: skip without touching the file on disk.
     for league in leagues:
         alias = aliases[league]
         league_dir = output_dir / alias
-        last_year = last_saved_year(league_dir, alias)
-        start_year = season_start
 
-        while start_year <= latest_start_year:
+        for start_year in range(season_start, latest_start_year + 1):
             season = season_str(start_year)
             out_path = league_dir / season_filename(alias, start_year)
+            league_last = last_saved_year(league_dir, alias)
 
-            if out_path.exists() and start_year != last_year:
+            # Skip confirmed-complete seasons that already have a file.
+            if out_path.exists() and (league_last is None or start_year < league_last):
                 log.info("Skipping %s %s — already saved", alias, season)
-                start_year += 1
                 continue
 
             log.info("Fetching %s %s ...", alias, season)
             try:
                 df = fetch_season(league, start_year)
-                if df.empty:
-                    log.info("Empty result for %s %s — skipping", alias, season)
-                    start_year += 1
-                    continue
-                save(df, out_path)
             except Exception as exc:
                 log.error("Failed %s %s: %s", alias, season, exc)
+                continue
 
-            start_year += 1
+            if df.empty:
+                log.info("Empty result for %s %s — skipping", alias, season)
+                continue
+
+            if not is_valid_season(df, start_year):
+                action = "existing file preserved" if out_path.exists() else "file not created"
+                log.info(
+                    "%s %s dates outside %d–%d — skipping (%s)",
+                    alias, season, start_year, start_year + 1, action,
+                )
+                continue
+
+            save(df, out_path)
 
 
 if __name__ == "__main__":
