@@ -12,6 +12,7 @@ temp.py
 migrations/
 instance/
 backend/modelling/data/
+backup-data/
 
 # Frontend
 logs
