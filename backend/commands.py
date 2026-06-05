@@ -1,23 +1,21 @@
-"""
-CLI commands for backend data management.
+"""CLI commands for backend data management.
 
 Run from the backend/ directory with the venv active, e.g.:
-    python commands.py
+    python commands.py process-data
 
-Available actions (determined by __main__ block below):
-  - Calculates the current EPL table and saves a snapshot to the database.
-    If the season has not kicked off yet, saves an alphabetical shell with
-    all stats at zero (and any pre-applied deductions reflected in points).
+Actions:
+  - scrape-data: fetch fixture/result CSVs and build preprocessed results.
+  - process-data: read existing CSVs and update DB standings/scores/projections.
+  - all: run scrape-data then process-data.
 """
 
+import argparse
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # ensure backend/ is on the path
 
-from modelling.retrieve import main as retrieve_data
-from modelling.preprocessing import main as preprocess_data
 from app import create_app
 from extensions import db
 from models.actual_standing import ActualStanding
@@ -32,6 +30,28 @@ from services.epl import (
     has_season_kicked_off,
     simulate_elo_projection,
 )
+
+
+def scrape_data_files() -> None:
+    """Fetch latest raw CSVs and rebuild the preprocessed results CSV."""
+    from modelling.retrieve import main as retrieve_data
+    from modelling.preprocessing import main as preprocess_data
+
+    print("Step 1/2: Fetching latest fixture and result data...")
+    retrieve_data()
+
+    print("Step 2/2: Preprocessing raw CSVs into results dataset...")
+    preprocess_data()
+
+
+def process_existing_data() -> None:
+    """Update DB-derived data from CSV files already present on disk."""
+    print("Processing existing CSV data...")
+    app = create_app()
+    with app.app_context():
+        season = get_latest_epl_season()
+        print(f"Processing season: {season}")
+        save_actual_standings_snapshot(season)
 
 
 def save_actual_standings_snapshot(season: str) -> None:
@@ -153,15 +173,18 @@ def recalculate_prediction_scores(season: str, actual_table: list[dict]) -> None
 
 
 if __name__ == "__main__":
-    print("Step 1/3: Fetching latest fixture and result data...")
-    retrieve_data()
+    parser = argparse.ArgumentParser(description="Predict The Ball data commands")
+    parser.add_argument(
+        "action",
+        nargs="?",
+        default="process-data",
+        choices=("scrape-data", "process-data", "all"),
+        help="Command to run. Defaults to process-data.",
+    )
+    args = parser.parse_args()
 
-    print("Step 2/3: Preprocessing raw CSVs into results dataset...")
-    preprocess_data()
+    if args.action in {"scrape-data", "all"}:
+        scrape_data_files()
 
-    print("Step 3/3: Saving standings snapshot...")
-    app = create_app()
-    with app.app_context():
-        season = get_latest_epl_season()
-        print(f"Processing season: {season}")
-        save_actual_standings_snapshot(season)
+    if args.action in {"process-data", "all"}:
+        process_existing_data()

@@ -17,5 +17,17 @@ jobs:
           script: |
             cd /home/ubuntu
             cd predict-the-ball
-            git pull origin main
-            docker compose up -d --build predict-the-ball
+            BEFORE="$(git rev-parse HEAD)"
+            git fetch origin main
+            AFTER="$(git rev-parse origin/main)"
+            CHANGED_FILES="$(git diff --name-only "$BEFORE" "$AFTER")"
+
+            git merge --ff-only origin/main
+
+            if echo "$CHANGED_FILES" | grep -Eq '^(backend/(Dockerfile|requirements\.txt|app\.py|config\.py|commands\.py|extensions\.py|models/|routes/|services/|modelling/.*\.py)|docker-compose\.yml)'; then
+              docker compose up -d --build predict-the-ball
+            else
+              docker compose up -d predict-the-ball
+            fi
+
+            docker compose run --rm predict-the-ball python commands.py process-data
