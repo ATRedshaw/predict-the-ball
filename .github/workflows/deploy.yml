@@ -15,6 +15,7 @@ jobs:
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
-            cd /home/ubuntu/predict-the-ball
+            cd /home/ubuntu
+            cd predict-the-ball
             git pull origin main
             docker compose up -d --build predict-the-ball
