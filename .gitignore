@@ -2,6 +2,7 @@ TODO
 
 # Backend
 venv/
+scraping-venv/
 downloaded_files/
 __pycache__/
 *.pyc
