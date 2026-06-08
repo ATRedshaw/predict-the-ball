@@ -1,0 +1,15 @@
+data:
+  raw_dir: "modelling-new/data/raw"
+  output_path: "modelling-new/data/preprocessed/results.csv"
+  mapping_path: "modelling-new/data/mapping/team_name_mapping.json"
+
+sources:
+  fpl_bootstrap_url: "https://fantasy.premierleague.com/api/bootstrap-static/"
+  fpl_fixtures_url: "https://fantasy.premierleague.com/api/fixtures/"
+
+groq:
+  models_url: "https://api.groq.com/openai/v1/models"
+  chat_completions_url: "https://api.groq.com/openai/v1/chat/completions"
+  preferred_models:
+    - "llama-3.3-70b-versatile"
+    - "llama-3.1-8b-instant"
