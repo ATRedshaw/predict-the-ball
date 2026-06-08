@@ -1,4 +1,4 @@
-"""Preprocess historical and current-season results for modelling-new.
+"""Preprocess historical and current-season results for modelling.
 
 Historical CSVs under ``data/raw/<league>/`` are aggregated into the same
 model-facing shape as the existing modelling pipeline:
@@ -11,7 +11,7 @@ mapped onto the historical team-name vocabulary, then appended before writing
 
 Run from the backend/ directory:
 
-    python modelling-new/preprocessing.py
+    python modelling/preprocessing.py
 """
 
 from __future__ import annotations
@@ -372,7 +372,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
-    """Build and write the modelling-new preprocessed results dataset."""
+    """Build and write the modelling preprocessed results dataset."""
     args = parse_args()
     config = load_config(args.config)
     data_cfg = config["data"]

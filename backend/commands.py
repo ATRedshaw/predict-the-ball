@@ -34,13 +34,13 @@ from services.epl import (
 
 
 _BACKEND_DIR = Path(__file__).resolve().parent
-_MODELLING_NEW_DIR = _BACKEND_DIR / "modelling-new"
+_MODELLING_DIR = _BACKEND_DIR / "modelling"
 
 
 def _load_module_from_path(module_name: str, path: Path):
     """Load a Python module from a file path.
 
-    ``modelling-new`` contains a hyphen, so it cannot be imported with normal
+    ``modelling`` contains a hyphen, so it cannot be imported with normal
     dotted Python syntax.
     """
     spec = importlib.util.spec_from_file_location(module_name, path)
@@ -63,9 +63,9 @@ def _run_module_main(module, script_path: Path) -> None:
 
 
 def scrape_data_files() -> None:
-    """Fetch latest modelling-new raw data and rebuild preprocessed results."""
-    historical_path = _MODELLING_NEW_DIR / "historical.py"
-    preprocessing_path = _MODELLING_NEW_DIR / "preprocessing.py"
+    """Fetch latest modelling raw data and rebuild preprocessed results."""
+    historical_path = _MODELLING_DIR / "historical.py"
+    preprocessing_path = _MODELLING_DIR / "preprocessing.py"
     historical = _load_module_from_path(
         "modelling_new_historical",
         historical_path,
@@ -83,8 +83,8 @@ def scrape_data_files() -> None:
 
 
 def process_existing_data() -> None:
-    """Update DB-derived data from modelling-new data and the FPL API."""
-    print("Processing modelling-new data and current FPL data...")
+    """Update DB-derived data from modelling data and the FPL API."""
+    print("Processing modelling data and current FPL data...")
     app = create_app()
     with app.app_context():
         season = get_latest_epl_season()

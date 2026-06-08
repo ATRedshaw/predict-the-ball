@@ -1,1 +1,1 @@
-"""Utility helpers for the modelling-new pipeline."""
+"""Utility helpers for the modelling pipeline."""

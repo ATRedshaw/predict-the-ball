@@ -17,7 +17,7 @@ data:
   season_start: 2016
 
   # Output directory, relative to backend/.
-  output_dir: "modelling-new/data/raw"
+  output_dir: "modelling/data/raw"
 
 sources:
   fpl_bootstrap_url: "https://fantasy.premierleague.com/api/bootstrap-static/"

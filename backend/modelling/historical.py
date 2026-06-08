@@ -14,7 +14,7 @@ Raw CSVs are saved under ``data/raw/<league>/`` with five columns:
 
 Run from the backend/ directory:
 
-    python modelling-new/historical.py
+    python modelling/historical.py
 """
 
 from __future__ import annotations

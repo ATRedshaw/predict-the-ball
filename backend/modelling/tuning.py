@@ -26,7 +26,7 @@ reversion       : Fraction of the gap from 1500 that is pulled back at the
                   start of each new season (off-season mean reversion).
 
 Run from backend/:
-    python modelling-new/tuning.py
+    python modelling/tuning.py
 """
 
 import json

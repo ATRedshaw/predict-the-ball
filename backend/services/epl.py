@@ -1,7 +1,7 @@
 """Service helpers for EPL season state, tables, and projections.
 
 Current-season Premier League data is read from the FPL API. Historical local
-data and trained ELO inputs come from ``backend/modelling-new``.
+data and trained ELO inputs come from ``backend/modelling``.
 """
 
 from __future__ import annotations
@@ -20,11 +20,11 @@ import numpy as np
 import pandas as pd
 
 _BACKEND_DIR = Path(__file__).parent.parent
-_MODELLING_NEW_DIR = _BACKEND_DIR / "modelling-new"
-_EPL_RAW_DIR = _MODELLING_NEW_DIR / "data" / "raw" / "EPL"
-_PREPROCESSED_RESULTS = _MODELLING_NEW_DIR / "data" / "preprocessed" / "results.csv"
-_ELO_PARAMS = _MODELLING_NEW_DIR / "data" / "params" / "elo.json"
-_TEAM_MAPPING_PATH = _MODELLING_NEW_DIR / "data" / "mapping" / "team_name_mapping.json"
+_MODELLING_DIR = _BACKEND_DIR / "modelling"
+_EPL_RAW_DIR = _MODELLING_DIR / "data" / "raw" / "EPL"
+_PREPROCESSED_RESULTS = _MODELLING_DIR / "data" / "preprocessed" / "results.csv"
+_ELO_PARAMS = _MODELLING_DIR / "data" / "params" / "elo.json"
+_TEAM_MAPPING_PATH = _MODELLING_DIR / "data" / "mapping" / "team_name_mapping.json"
 
 _FPL_BOOTSTRAP_URL = "https://fantasy.premierleague.com/api/bootstrap-static/"
 _FPL_FIXTURES_URL = "https://fantasy.premierleague.com/api/fixtures/"
@@ -131,7 +131,7 @@ def _is_current_fpl_season(season: str, bootstrap: dict | None = None) -> bool:
 
 
 def _load_team_name_mapping() -> dict[str, str]:
-    """Load FPL-name to modelling-new team-name mapping."""
+    """Load FPL-name to modelling team-name mapping."""
     if not _TEAM_MAPPING_PATH.exists():
         return {}
     with _TEAM_MAPPING_PATH.open() as f:
@@ -146,7 +146,7 @@ def _load_team_name_mapping() -> dict[str, str]:
 
 
 def _map_fpl_team_name(name: str, mapping: dict[str, str]) -> str:
-    """Map an FPL team name to the modelling-new historical name."""
+    """Map an FPL team name to the modelling historical name."""
     return mapping.get(name, name)
 
 
@@ -175,7 +175,7 @@ def _fpl_team_by_id(bootstrap: dict | None = None) -> dict[int, str]:
 
 
 def _mapped_current_fpl_teams(bootstrap: dict | None = None) -> list[str]:
-    """Return current EPL teams using modelling-new names."""
+    """Return current EPL teams using modelling names."""
     bootstrap = bootstrap or _fetch_fpl_bootstrap()
     mapping = _load_team_name_mapping()
     teams = {
@@ -200,7 +200,7 @@ def _is_completed_fixture(fixture: dict) -> bool:
 def _current_fpl_fixture_data() -> tuple[list[str], list[dict], list[dict]]:
     """Return current EPL teams, completed results, and remaining fixtures.
 
-    Team names are mapped from FPL names to modelling-new historical names.
+    Team names are mapped from FPL names to modelling historical names.
     """
     bootstrap = _fetch_fpl_bootstrap()
     fixtures = _fetch_fpl_fixtures()
@@ -251,13 +251,13 @@ def _current_fpl_fixture_data() -> tuple[list[str], list[dict], list[dict]]:
 
 
 def _historical_epl_csv_path(season: str) -> Path:
-    """Return the modelling-new raw EPL CSV path for a historical season."""
+    """Return the modelling raw EPL CSV path for a historical season."""
     start_year = _start_year_from_display(season)
     return _EPL_RAW_DIR / f"EPL_{start_year}_{start_year + 1}.csv"
 
 
 def _historical_epl_raw(season: str) -> pd.DataFrame:
-    """Load a historical modelling-new EPL raw CSV."""
+    """Load a historical modelling EPL raw CSV."""
     csv_path = _historical_epl_csv_path(season)
     if not csv_path.exists():
         return pd.DataFrame()
@@ -345,7 +345,7 @@ def get_first_kickoff(season: str) -> datetime | None:
 
 
 def get_season_teams(season: str) -> list[str]:
-    """Return all EPL team names for a season using modelling-new names."""
+    """Return all EPL team names for a season using modelling names."""
     if _is_current_fpl_season(season):
         return _mapped_current_fpl_teams()
 

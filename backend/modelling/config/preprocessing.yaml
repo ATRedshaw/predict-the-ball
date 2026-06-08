@@ -1,7 +1,7 @@
 data:
-  raw_dir: "modelling-new/data/raw"
-  output_path: "modelling-new/data/preprocessed/results.csv"
-  mapping_path: "modelling-new/data/mapping/team_name_mapping.json"
+  raw_dir: "modelling/data/raw"
+  output_path: "modelling/data/preprocessed/results.csv"
+  mapping_path: "modelling/data/mapping/team_name_mapping.json"
 
 sources:
   fpl_bootstrap_url: "https://fantasy.premierleague.com/api/bootstrap-static/"
