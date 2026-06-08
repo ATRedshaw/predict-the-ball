@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { usePageLoading } from '../components/PageLoadingContext'
 
@@ -15,12 +16,14 @@ function fmt(n, decimals = 1) {
   return Number(n).toFixed(decimals)
 }
 
-function toDateInput(isoString) {
-  return isoString ? isoString.slice(0, 10) : ''
+function todayISO() {
+  const now = new Date()
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 10)
 }
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10)
+function isProjectionLockedError(message) {
+  return message?.toLowerCase().includes('projections are not available until the season kicks off')
 }
 
 // ---------------------------------------------------------------------------
@@ -45,6 +48,99 @@ function TabButton({ active, onClick, children }) {
     >
       {children}
     </button>
+  )
+}
+
+function ProjectionLockedState({ season }) {
+  const rows = [
+    { pos: 1, label: 'Title race', colour: 'bg-yellow-400/70', width: '78%' },
+    { pos: 4, label: 'Top four', colour: 'bg-teal-muted/70', width: '62%' },
+    { pos: 10, label: 'Mid-table', colour: 'bg-white/25', width: '48%' },
+    { pos: 17, label: 'Safety line', colour: 'bg-white/20', width: '36%' },
+    { pos: 18, label: 'Relegation', colour: 'bg-red-500/70', width: '54%' },
+  ]
+
+  return (
+    <div className="max-w-4xl mx-auto w-full py-2">
+      <div className="rounded-2xl bg-jet-dark border border-white/8 overflow-hidden">
+        <div className="grid md:grid-cols-[1fr_19rem]">
+          <div className="p-6 sm:p-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-teal/30 bg-teal/10 px-3 py-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-teal-muted" />
+              <span className="text-teal-muted text-[10px] font-medium uppercase tracking-widest">
+                {season ? `${season} season` : 'Pre-season'}
+              </span>
+            </div>
+
+            <h1 className="mt-5 max-w-2xl text-white text-2xl sm:text-3xl font-bold leading-tight">
+              Projections are not available until the season kicks off.
+            </h1>
+
+            <p className="mt-3 max-w-xl text-white/45 text-sm leading-relaxed">
+              Once the first match has been played, the model page will show projected finishes,
+              title chances, relegation risk, and the comparison against the live table.
+            </p>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                to="/predictions"
+                className="bg-teal text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-teal/80 transition-colors"
+              >
+                Open predictions
+              </Link>
+              <Link
+                to="/standings"
+                className="border border-white/10 text-teal-muted text-sm font-medium px-4 py-2 rounded-xl hover:bg-white/5 hover:text-white transition-colors"
+              >
+                View standings
+              </Link>
+            </div>
+          </div>
+
+          <div className="bg-jet/45 border-t md:border-t-0 md:border-l border-white/8 p-5 sm:p-6 flex items-center">
+            <div className="w-full">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-white/25 text-[10px] uppercase tracking-widest">Projection table</span>
+                <span className="text-teal-muted/60 text-[10px] font-mono">Locked</span>
+              </div>
+
+              <div className="rounded-xl bg-jet-dark/80 border border-white/8 p-3 space-y-2">
+                {rows.map(({ pos, label, colour, width }) => (
+                  <div key={label} className="grid grid-cols-[1.5rem_1fr_3rem] gap-2 items-center">
+                    <span
+                      className={`font-mono text-xs text-right ${
+                        pos === 1 ? 'text-yellow-400/70' : pos >= 18 ? 'text-red-400/70' : 'text-white/30'
+                      }`}
+                    >
+                      {pos}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-white/45 text-xs truncate">{label}</span>
+                        <span className="text-white/20 text-[10px] font-mono">--%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
+                        <div className={`h-full rounded-full ${colour}`} style={{ width }} />
+                      </div>
+                    </div>
+                    <span className="text-white/20 text-[10px] font-mono text-right">--</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {['Title', 'Top 4', 'Drop'].map(label => (
+                  <div key={label} className="rounded-lg bg-white/[0.03] px-2 py-2 text-center">
+                    <p className="text-white/20 text-[10px] uppercase tracking-widest">{label}</p>
+                    <p className="text-white/35 text-sm font-mono mt-1">--</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -349,7 +445,7 @@ function CompareTable({ comparison, actualUpdatedAt, projectionUpdatedAt }) {
       </div>
 
       <div className="space-y-1.5">
-        {comparison.map(({ team, actual_position, projected_rank, projected_mean_position, position_delta }, i) => {
+        {comparison.map(({ team, actual_position, projected_rank, projected_mean_position, position_delta }) => {
           const deltaColour =
             position_delta == null ? 'text-white/20' :
             position_delta < 0    ? 'text-green-400' :
@@ -390,10 +486,10 @@ function CompareTable({ comparison, actualUpdatedAt, projectionUpdatedAt }) {
 
       <div className="mt-4 flex flex-wrap gap-4 justify-center text-[10px] text-white/30">
         {actualUpdatedAt && (
-          <span>Actual table: {new Date(actualUpdatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+          <span>Current standings: {new Date(actualUpdatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
         )}
         {projectionUpdatedAt && (
-          <span>Projection baseline: {new Date(projectionUpdatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+          <span>Projection snapshot: {new Date(projectionUpdatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
         )}
       </div>
     </div>
@@ -428,7 +524,7 @@ export default function ModelPredictions() {
   // User vs model context
   const [userContext, setUserContext] = useState(null)
 
-  useLayoutEffect(() => { setPageLoading(true) }, [])
+  useLayoutEffect(() => { setPageLoading(true) }, [setPageLoading])
 
   // Initial load — get season then fetch latest projection
   useEffect(() => {
@@ -438,13 +534,18 @@ export default function ModelPredictions() {
         setSeason(s)
 
         const { kicked_off } = await api.get(`/api/standings/${s}/deadline`)
-        if (!kicked_off) setPreseason(true)
+        if (!kicked_off) {
+          setPreseason(true)
+          return
+        }
+
+        const currentDate = todayISO()
+        setDateInput(currentDate)
 
         try {
           const data = await api.get(`/api/standings/${s}/elo/latest`)
           setProjData(data.projections)
           setProjUpdatedAt(data.updated_at)
-          setDateInput(toDateInput(data.updated_at))
         } catch (projErr) {
           // 404 = no projection run yet — surface as a soft empty state, not a crash.
           if (projErr.message?.includes('404') || projErr.message?.toLowerCase().includes('no elo')) {
@@ -462,7 +563,11 @@ export default function ModelPredictions() {
           // No prediction or no projection yet — just leave null.
         }
       } catch (err) {
-        setError(err.message)
+        if (isProjectionLockedError(err.message)) {
+          setPreseason(true)
+        } else {
+          setError(err.message)
+        }
       } finally {
         setPageLoading(false)
       }
@@ -481,7 +586,7 @@ export default function ModelPredictions() {
     setDateError(null)
     setDateFetching(true)
     try {
-      const data = await api.get(`/api/standings/${s}/elo/on?date=${dateStr}`)
+      const data = await api.get(`/api/standings/${s}/elo/on?date=${encodeURIComponent(dateStr)}`)
       setProjData(data.projections)
       setProjUpdatedAt(data.updated_at)
     } catch (err) {
@@ -494,9 +599,10 @@ export default function ModelPredictions() {
   async function fetchCompare(s, dateStr) {
     setCompareError(null)
     setCompareFetching(true)
+    setCompareData(null)
     try {
       const url = dateStr
-        ? `/api/standings/${s}/elo/compare?date=${dateStr}`
+        ? `/api/standings/${s}/elo/compare?date=${encodeURIComponent(dateStr)}`
         : `/api/standings/${s}/elo/compare`
       const data = await api.get(url)
       setCompareData(data)
@@ -511,6 +617,13 @@ export default function ModelPredictions() {
     e.preventDefault()
     if (!dateInput || !season) return
     fetchProjectionOnDate(season, dateInput)
+  }
+
+  function handleProjectionDateReset() {
+    if (!season) return
+    const current = todayISO()
+    setDateInput(current)
+    fetchProjectionOnDate(season, current)
   }
 
   function handleCompareDateSubmit(e) {
@@ -535,14 +648,7 @@ export default function ModelPredictions() {
     : null
 
   if (preseason) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center space-y-2">
-          <p className="text-white/60 text-sm">Projections unlock once the season kicks off.</p>
-          <p className="text-white/30 text-xs">Check back after the deadline to see where the model thinks each team will finish.</p>
-        </div>
-      </div>
-    )
+    return <ProjectionLockedState season={season} />
   }
 
   return (
@@ -565,12 +671,12 @@ export default function ModelPredictions() {
       <UserVsModel ctx={userContext} />
 
       {/* Tabs */}
-      <div className="flex gap-1.5">
+      <div className="flex flex-wrap gap-1.5">
         <TabButton active={tab === 'projections'} onClick={() => setTab('projections')}>
-          Projections
+          Projected Finish Probabilities
         </TabButton>
         <TabButton active={tab === 'compare'} onClick={() => setTab('compare')}>
-          vs Actual
+          Projections vs Actual Standings
         </TabButton>
       </div>
 
@@ -580,7 +686,10 @@ export default function ModelPredictions() {
 
           {/* Date picker */}
           <div className="bg-jet-dark rounded-2xl p-5">
-            <SectionHeading>View projection on date</SectionHeading>
+            <SectionHeading>Projection date</SectionHeading>
+            <p className="text-white/30 text-xs mb-3">
+              Shows the most recent projection snapshot available on or before the selected date.
+            </p>
             <form onSubmit={handleDateSubmit} className="flex items-center gap-3 flex-wrap">
               <input
                 type="date"
@@ -599,7 +708,7 @@ export default function ModelPredictions() {
               {season && (
                 <button
                   type="button"
-                  onClick={() => fetchProjectionOnDate(season, todayISO())}
+                  onClick={handleProjectionDateReset}
                   className="text-teal-muted text-sm hover:text-white transition-colors"
                 >
                   Reset to latest
@@ -638,10 +747,10 @@ export default function ModelPredictions() {
 
           {/* Date picker */}
           <div className="bg-jet-dark rounded-2xl p-5">
-            <SectionHeading>Pin to a specific date</SectionHeading>
+            <SectionHeading>Projection date</SectionHeading>
             <p className="text-white/30 text-xs mb-3">
-              By default, actual standings are compared against the very first projection of the season - the model's view before any ball was kicked.
-              Select a date to compare to a different snapshot.
+              Compares the current standings with the first projection of the season by default.
+              Select a date to compare against the latest projection snapshot available on that date.
             </p>
             <form onSubmit={handleCompareDateSubmit} className="flex items-center gap-3 flex-wrap">
               <input
@@ -656,7 +765,7 @@ export default function ModelPredictions() {
                 disabled={compareFetching}
                 className="bg-teal text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-teal/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                {compareFetching ? 'Loading…' : compareDateInput ? 'Load date' : 'Load baseline'}
+                {compareFetching ? 'Loading…' : compareDateInput ? 'Load projection' : 'Load baseline'}
               </button>
               {compareDateInput && (
                 <button
@@ -668,7 +777,7 @@ export default function ModelPredictions() {
                   }}
                   className="text-teal-muted text-sm hover:text-white transition-colors"
                 >
-                  Reset to baseline
+                  Use pre-season
                 </button>
               )}
             </form>
@@ -679,8 +788,8 @@ export default function ModelPredictions() {
           <div className="bg-jet-dark rounded-2xl p-5">
             <SectionHeading>
               {compareDateInput
-                ? `Actual (current) vs projection (on ${compareDateInput})`
-                : 'Actual (Current) vs pre-season projection'}
+                ? `Current standings vs ${compareDateInput} projections`
+                : 'Current standings vs pre-season projections'}
             </SectionHeading>
             {compareFetching ? (
               <p className="text-white/30 text-sm text-center py-8">Loading…</p>
@@ -690,6 +799,8 @@ export default function ModelPredictions() {
                 actualUpdatedAt={compareData.actual?.updated_at}
                 projectionUpdatedAt={compareData.projection?.updated_at}
               />
+            ) : compareError ? (
+              <p className="text-white/30 text-sm text-center py-8">No comparison loaded.</p>
             ) : (
               <p className="text-white/30 text-sm text-center py-8">Loading comparison…</p>
             )}

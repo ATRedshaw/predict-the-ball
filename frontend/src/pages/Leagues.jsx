@@ -601,7 +601,7 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
       </div>
 
       {/* invite code card */}
-      {!league.kicked_off && (
+      {!isPastSeason && (
         <div className="bg-jet-dark rounded-2xl p-4 mb-4 flex items-center justify-between gap-4 flex-wrap">
           <div>
             <p className="text-white/40 text-xs mb-1">Invite code</p>

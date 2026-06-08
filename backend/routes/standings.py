@@ -216,6 +216,39 @@ def _serialize_projection(snapshot: EloProjection) -> dict:
     }
 
 
+def _elo_projection_date_range(season: str) -> dict | None:
+    first = (
+        EloProjection.query
+        .filter_by(season=season)
+        .order_by(EloProjection.updated_at.asc())
+        .first()
+    )
+    if first is None:
+        return None
+
+    latest = (
+        EloProjection.query
+        .filter_by(season=season)
+        .order_by(EloProjection.updated_at.desc())
+        .first()
+    )
+    return {
+        "first": first.updated_at.date().isoformat(),
+        "latest": latest.updated_at.date().isoformat(),
+    }
+
+
+def _elo_projection_missing_error(season: str, raw_date: str) -> tuple:
+    available = _elo_projection_date_range(season)
+    message = f"No ELO projection found for {season} on or before {raw_date}"
+    if available:
+        message = (
+            f"{message}. Available projection dates are "
+            f"{available['first']} to {available['latest']}."
+        )
+    return jsonify({"error": message, "available_range": available}), 404
+
+
 @standings_bp.get("/<string:season>/elo/latest")
 @jwt_required()
 def get_latest_elo(season: str):
@@ -273,7 +306,7 @@ def get_elo_on_date(season: str):
         .first()
     )
     if snapshot is None:
-        return jsonify({"error": f"No ELO projection found for {season} on or before {raw}"}), 404
+        return _elo_projection_missing_error(season, raw)
 
     return jsonify(_serialize_projection(snapshot))
 
@@ -301,13 +334,12 @@ def compare_elo_vs_actual(season: str):
 
     By default compares the latest actual standings against the very first
     ELO projection ever produced for the season (i.e. what the model thought
-    before any results came in).  Pass a ``date`` query parameter
-    (``YYYY-MM-DD``) to instead use the most recent projection on or before
-    that date alongside the most recent actual standings on or before that date.
+    before any results came in). Pass a ``date`` query parameter
+    (``YYYY-MM-DD``) to compare the latest actual standings with the most
+    recent projection on or before that date.
 
     Query parameters:
-        date (str, optional): ``YYYY-MM-DD`` — pin both snapshots to a
-            specific point in time.  Defaults to the current moment.
+        date (str, optional): ``YYYY-MM-DD`` projection snapshot date.
 
     Response shape:
 
@@ -333,6 +365,13 @@ def compare_elo_vs_actual(season: str):
 
     raw_date = request.args.get("date", "").strip()
 
+    actual_snap = (
+        ActualStanding.query
+        .filter_by(season=season)
+        .order_by(ActualStanding.updated_at.desc())
+        .first()
+    )
+
     if raw_date:
         try:
             cutoff = datetime(
@@ -343,12 +382,6 @@ def compare_elo_vs_actual(season: str):
         except (ValueError, TypeError):
             return jsonify({"error": f"Invalid date '{raw_date}' — expected YYYY-MM-DD"}), 400
 
-        actual_snap = (
-            ActualStanding.query
-            .filter(ActualStanding.season == season, ActualStanding.updated_at <= cutoff)
-            .order_by(ActualStanding.updated_at.desc())
-            .first()
-        )
         proj_snap = (
             EloProjection.query
             .filter(EloProjection.season == season, EloProjection.updated_at <= cutoff)
@@ -356,13 +389,6 @@ def compare_elo_vs_actual(season: str):
             .first()
         )
     else:
-        actual_snap = (
-            ActualStanding.query
-            .filter_by(season=season)
-            .order_by(ActualStanding.updated_at.desc())
-            .first()
-        )
-        # First-ever projection for the season — baseline before any results.
         proj_snap = (
             EloProjection.query
             .filter_by(season=season)
@@ -373,6 +399,8 @@ def compare_elo_vs_actual(season: str):
     if actual_snap is None:
         return jsonify({"error": "No actual standings found for this season"}), 404
     if proj_snap is None:
+        if raw_date:
+            return _elo_projection_missing_error(season, raw_date)
         return jsonify({"error": "No ELO projection found for this season"}), 404
 
     actual_pos = {row["team"]: row["position"] for row in actual_snap.standings}

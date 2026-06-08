@@ -1,0 +1,24 @@
+data:
+  leagues:
+    - name: "ENG-Premier League"
+      alias: "EPL"
+      division_code: "E0"
+    - name: "ENG-Championship"
+      alias: "Championship"
+      division_code: "E1"
+    - name: "ENG-League-1"
+      alias: "League_1"
+      division_code: "E2"
+    - name: "ENG-League-2"
+      alias: "League_2"
+      division_code: "E3"
+
+  # Season START years. 2016 = the 2016-17 season.
+  season_start: 2016
+
+  # Output directory, relative to backend/.
+  output_dir: "modelling/data/raw"
+
+sources:
+  fpl_bootstrap_url: "https://fantasy.premierleague.com/api/bootstrap-static/"
+  football_data_base_url: "https://www.football-data.co.uk/mmz4281"
