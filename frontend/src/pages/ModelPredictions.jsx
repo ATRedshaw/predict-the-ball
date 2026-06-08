@@ -16,12 +16,10 @@ function fmt(n, decimals = 1) {
   return Number(n).toFixed(decimals)
 }
 
-function toDateInput(isoString) {
-  return isoString ? isoString.slice(0, 10) : ''
-}
-
 function todayISO() {
-  return new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 10)
 }
 
 function isProjectionLockedError(message) {
@@ -447,7 +445,7 @@ function CompareTable({ comparison, actualUpdatedAt, projectionUpdatedAt }) {
       </div>
 
       <div className="space-y-1.5">
-        {comparison.map(({ team, actual_position, projected_rank, projected_mean_position, position_delta }, i) => {
+        {comparison.map(({ team, actual_position, projected_rank, projected_mean_position, position_delta }) => {
           const deltaColour =
             position_delta == null ? 'text-white/20' :
             position_delta < 0    ? 'text-green-400' :
@@ -488,10 +486,10 @@ function CompareTable({ comparison, actualUpdatedAt, projectionUpdatedAt }) {
 
       <div className="mt-4 flex flex-wrap gap-4 justify-center text-[10px] text-white/30">
         {actualUpdatedAt && (
-          <span>Actual table: {new Date(actualUpdatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+          <span>Current standings: {new Date(actualUpdatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
         )}
         {projectionUpdatedAt && (
-          <span>Projection baseline: {new Date(projectionUpdatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+          <span>Projection snapshot: {new Date(projectionUpdatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
         )}
       </div>
     </div>
@@ -526,7 +524,7 @@ export default function ModelPredictions() {
   // User vs model context
   const [userContext, setUserContext] = useState(null)
 
-  useLayoutEffect(() => { setPageLoading(true) }, [])
+  useLayoutEffect(() => { setPageLoading(true) }, [setPageLoading])
 
   // Initial load — get season then fetch latest projection
   useEffect(() => {
@@ -541,11 +539,13 @@ export default function ModelPredictions() {
           return
         }
 
+        const currentDate = todayISO()
+        setDateInput(currentDate)
+
         try {
           const data = await api.get(`/api/standings/${s}/elo/latest`)
           setProjData(data.projections)
           setProjUpdatedAt(data.updated_at)
-          setDateInput(toDateInput(data.updated_at))
         } catch (projErr) {
           // 404 = no projection run yet — surface as a soft empty state, not a crash.
           if (projErr.message?.includes('404') || projErr.message?.toLowerCase().includes('no elo')) {
@@ -586,7 +586,7 @@ export default function ModelPredictions() {
     setDateError(null)
     setDateFetching(true)
     try {
-      const data = await api.get(`/api/standings/${s}/elo/on?date=${dateStr}`)
+      const data = await api.get(`/api/standings/${s}/elo/on?date=${encodeURIComponent(dateStr)}`)
       setProjData(data.projections)
       setProjUpdatedAt(data.updated_at)
     } catch (err) {
@@ -599,9 +599,10 @@ export default function ModelPredictions() {
   async function fetchCompare(s, dateStr) {
     setCompareError(null)
     setCompareFetching(true)
+    setCompareData(null)
     try {
       const url = dateStr
-        ? `/api/standings/${s}/elo/compare?date=${dateStr}`
+        ? `/api/standings/${s}/elo/compare?date=${encodeURIComponent(dateStr)}`
         : `/api/standings/${s}/elo/compare`
       const data = await api.get(url)
       setCompareData(data)
@@ -616,6 +617,13 @@ export default function ModelPredictions() {
     e.preventDefault()
     if (!dateInput || !season) return
     fetchProjectionOnDate(season, dateInput)
+  }
+
+  function handleProjectionDateReset() {
+    if (!season) return
+    const current = todayISO()
+    setDateInput(current)
+    fetchProjectionOnDate(season, current)
   }
 
   function handleCompareDateSubmit(e) {
@@ -663,12 +671,12 @@ export default function ModelPredictions() {
       <UserVsModel ctx={userContext} />
 
       {/* Tabs */}
-      <div className="flex gap-1.5">
+      <div className="flex flex-wrap gap-1.5">
         <TabButton active={tab === 'projections'} onClick={() => setTab('projections')}>
-          Projections
+          Projected Finish Probabilities
         </TabButton>
         <TabButton active={tab === 'compare'} onClick={() => setTab('compare')}>
-          vs Actual
+          Projections vs Actual Standings
         </TabButton>
       </div>
 
@@ -678,7 +686,10 @@ export default function ModelPredictions() {
 
           {/* Date picker */}
           <div className="bg-jet-dark rounded-2xl p-5">
-            <SectionHeading>View projection on date</SectionHeading>
+            <SectionHeading>Projection date</SectionHeading>
+            <p className="text-white/30 text-xs mb-3">
+              Shows the most recent projection snapshot available on or before the selected date.
+            </p>
             <form onSubmit={handleDateSubmit} className="flex items-center gap-3 flex-wrap">
               <input
                 type="date"
@@ -697,7 +708,7 @@ export default function ModelPredictions() {
               {season && (
                 <button
                   type="button"
-                  onClick={() => fetchProjectionOnDate(season, todayISO())}
+                  onClick={handleProjectionDateReset}
                   className="text-teal-muted text-sm hover:text-white transition-colors"
                 >
                   Reset to latest
@@ -736,10 +747,10 @@ export default function ModelPredictions() {
 
           {/* Date picker */}
           <div className="bg-jet-dark rounded-2xl p-5">
-            <SectionHeading>Pin to a specific date</SectionHeading>
+            <SectionHeading>Projection date</SectionHeading>
             <p className="text-white/30 text-xs mb-3">
-              By default, actual standings are compared against the very first projection of the season - the model's view before any ball was kicked.
-              Select a date to compare to a different snapshot.
+              Compares the current standings with the first projection of the season by default.
+              Select a date to compare against the latest projection snapshot available on that date.
             </p>
             <form onSubmit={handleCompareDateSubmit} className="flex items-center gap-3 flex-wrap">
               <input
@@ -754,7 +765,7 @@ export default function ModelPredictions() {
                 disabled={compareFetching}
                 className="bg-teal text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-teal/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                {compareFetching ? 'Loading…' : compareDateInput ? 'Load date' : 'Load baseline'}
+                {compareFetching ? 'Loading…' : compareDateInput ? 'Load projection' : 'Load baseline'}
               </button>
               {compareDateInput && (
                 <button
@@ -766,7 +777,7 @@ export default function ModelPredictions() {
                   }}
                   className="text-teal-muted text-sm hover:text-white transition-colors"
                 >
-                  Reset to baseline
+                  Use pre-season
                 </button>
               )}
             </form>
@@ -777,8 +788,8 @@ export default function ModelPredictions() {
           <div className="bg-jet-dark rounded-2xl p-5">
             <SectionHeading>
               {compareDateInput
-                ? `Actual (current) vs projection (on ${compareDateInput})`
-                : 'Actual (Current) vs pre-season projection'}
+                ? `Current standings vs ${compareDateInput} projections`
+                : 'Current standings vs pre-season projections'}
             </SectionHeading>
             {compareFetching ? (
               <p className="text-white/30 text-sm text-center py-8">Loading…</p>
@@ -788,6 +799,8 @@ export default function ModelPredictions() {
                 actualUpdatedAt={compareData.actual?.updated_at}
                 projectionUpdatedAt={compareData.projection?.updated_at}
               />
+            ) : compareError ? (
+              <p className="text-white/30 text-sm text-center py-8">No comparison loaded.</p>
             ) : (
               <p className="text-white/30 text-sm text-center py-8">Loading comparison…</p>
             )}
