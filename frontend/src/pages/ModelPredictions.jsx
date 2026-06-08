@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { usePageLoading } from '../components/PageLoadingContext'
 
@@ -23,6 +24,10 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10)
 }
 
+function isProjectionLockedError(message) {
+  return message?.toLowerCase().includes('projections are not available until the season kicks off')
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -45,6 +50,99 @@ function TabButton({ active, onClick, children }) {
     >
       {children}
     </button>
+  )
+}
+
+function ProjectionLockedState({ season }) {
+  const rows = [
+    { pos: 1, label: 'Title race', colour: 'bg-yellow-400/70', width: '78%' },
+    { pos: 4, label: 'Top four', colour: 'bg-teal-muted/70', width: '62%' },
+    { pos: 10, label: 'Mid-table', colour: 'bg-white/25', width: '48%' },
+    { pos: 17, label: 'Safety line', colour: 'bg-white/20', width: '36%' },
+    { pos: 18, label: 'Relegation', colour: 'bg-red-500/70', width: '54%' },
+  ]
+
+  return (
+    <div className="max-w-4xl mx-auto w-full py-2">
+      <div className="rounded-2xl bg-jet-dark border border-white/8 overflow-hidden">
+        <div className="grid md:grid-cols-[1fr_19rem]">
+          <div className="p-6 sm:p-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-teal/30 bg-teal/10 px-3 py-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-teal-muted" />
+              <span className="text-teal-muted text-[10px] font-medium uppercase tracking-widest">
+                {season ? `${season} season` : 'Pre-season'}
+              </span>
+            </div>
+
+            <h1 className="mt-5 max-w-2xl text-white text-2xl sm:text-3xl font-bold leading-tight">
+              Projections are not available until the season kicks off.
+            </h1>
+
+            <p className="mt-3 max-w-xl text-white/45 text-sm leading-relaxed">
+              Once the first match has been played, the model page will show projected finishes,
+              title chances, relegation risk, and the comparison against the live table.
+            </p>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                to="/predictions"
+                className="bg-teal text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-teal/80 transition-colors"
+              >
+                Open predictions
+              </Link>
+              <Link
+                to="/standings"
+                className="border border-white/10 text-teal-muted text-sm font-medium px-4 py-2 rounded-xl hover:bg-white/5 hover:text-white transition-colors"
+              >
+                View standings
+              </Link>
+            </div>
+          </div>
+
+          <div className="bg-jet/45 border-t md:border-t-0 md:border-l border-white/8 p-5 sm:p-6 flex items-center">
+            <div className="w-full">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-white/25 text-[10px] uppercase tracking-widest">Projection table</span>
+                <span className="text-teal-muted/60 text-[10px] font-mono">Locked</span>
+              </div>
+
+              <div className="rounded-xl bg-jet-dark/80 border border-white/8 p-3 space-y-2">
+                {rows.map(({ pos, label, colour, width }) => (
+                  <div key={label} className="grid grid-cols-[1.5rem_1fr_3rem] gap-2 items-center">
+                    <span
+                      className={`font-mono text-xs text-right ${
+                        pos === 1 ? 'text-yellow-400/70' : pos >= 18 ? 'text-red-400/70' : 'text-white/30'
+                      }`}
+                    >
+                      {pos}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-white/45 text-xs truncate">{label}</span>
+                        <span className="text-white/20 text-[10px] font-mono">--%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
+                        <div className={`h-full rounded-full ${colour}`} style={{ width }} />
+                      </div>
+                    </div>
+                    <span className="text-white/20 text-[10px] font-mono text-right">--</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {['Title', 'Top 4', 'Drop'].map(label => (
+                  <div key={label} className="rounded-lg bg-white/[0.03] px-2 py-2 text-center">
+                    <p className="text-white/20 text-[10px] uppercase tracking-widest">{label}</p>
+                    <p className="text-white/35 text-sm font-mono mt-1">--</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -438,7 +536,10 @@ export default function ModelPredictions() {
         setSeason(s)
 
         const { kicked_off } = await api.get(`/api/standings/${s}/deadline`)
-        if (!kicked_off) setPreseason(true)
+        if (!kicked_off) {
+          setPreseason(true)
+          return
+        }
 
         try {
           const data = await api.get(`/api/standings/${s}/elo/latest`)
@@ -462,7 +563,11 @@ export default function ModelPredictions() {
           // No prediction or no projection yet — just leave null.
         }
       } catch (err) {
-        setError(err.message)
+        if (isProjectionLockedError(err.message)) {
+          setPreseason(true)
+        } else {
+          setError(err.message)
+        }
       } finally {
         setPageLoading(false)
       }
@@ -535,14 +640,7 @@ export default function ModelPredictions() {
     : null
 
   if (preseason) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center space-y-2">
-          <p className="text-white/60 text-sm">Projections unlock once the season kicks off.</p>
-          <p className="text-white/30 text-xs">Check back after the deadline to see where the model thinks each team will finish.</p>
-        </div>
-      </div>
-    )
+    return <ProjectionLockedState season={season} />
   }
 
   return (
