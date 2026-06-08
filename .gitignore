@@ -12,6 +12,7 @@ backend/modelling/modelling_config.yaml
 temp.py
 migrations/
 instance/
+data/
 backup-data/
 plan/
 
