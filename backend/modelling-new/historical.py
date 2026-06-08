@@ -14,7 +14,7 @@ Raw CSVs are saved under ``data/raw/<league>/`` with five columns:
 
 Run from the backend/ directory:
 
-    python modelling-new/retrieve.py
+    python modelling-new/historical.py
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ log = logging.getLogger(__name__)
 
 _HERE = Path(__file__).resolve().parent
 BACKEND_DIR = _HERE.parent
-CONFIG_PATH = _HERE / "config" / "retrieve.yaml"
+CONFIG_PATH = _HERE / "config" / "historical.yaml"
 
 USER_AGENT = (
     "predict-the-ball/1.0 "
@@ -49,7 +49,7 @@ USER_AGENT = (
 
 
 def load_config(path: Path) -> dict[str, Any]:
-    """Load the retrieval YAML config."""
+    """Load the historical YAML config."""
     if not path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
     with path.open() as f:
