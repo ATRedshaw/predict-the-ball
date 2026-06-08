@@ -98,7 +98,7 @@ def process_existing_data() -> None:
         save_actual_standings_snapshot(season)
 
 
-def save_actual_standings_snapshot(season: str) -> None:
+def save_actual_standings_snapshot(season: str, force: bool = False) -> None:
     """Calculate the current EPL table and persist a new snapshot.
 
     Pulls any active points deductions from the database for the season,
@@ -108,6 +108,7 @@ def save_actual_standings_snapshot(season: str) -> None:
 
     Args:
         season: Season string in ``'20xx-xx'`` format, e.g. ``'2025-26'``.
+        force: Save a fresh snapshot even when the calculated table matches the latest row.
     """
     kicked_off = has_season_kicked_off(season)
 
@@ -126,7 +127,7 @@ def save_actual_standings_snapshot(season: str) -> None:
         .order_by(ActualStanding.updated_at.desc())
         .first()
     )
-    if latest is not None and latest.standings == table:
+    if latest is not None and latest.standings == table and not force:
         print(f"Table unchanged for {season} — skipping snapshot.")
         return
 

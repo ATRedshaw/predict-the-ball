@@ -69,7 +69,7 @@ def refresh_standings():
         from services.epl import get_latest_epl_season
 
         season = get_latest_epl_season()
-        save_actual_standings_snapshot(season)
+        save_actual_standings_snapshot(season, force=True)
         return jsonify({"message": f"Standings refreshed for {season}"}), 200
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
