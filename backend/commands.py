@@ -10,6 +10,7 @@ Actions:
 """
 
 import argparse
+import importlib.util
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,21 +33,58 @@ from services.epl import (
 )
 
 
+_BACKEND_DIR = Path(__file__).resolve().parent
+_MODELLING_NEW_DIR = _BACKEND_DIR / "modelling-new"
+
+
+def _load_module_from_path(module_name: str, path: Path):
+    """Load a Python module from a file path.
+
+    ``modelling-new`` contains a hyphen, so it cannot be imported with normal
+    dotted Python syntax.
+    """
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load module from {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _run_module_main(module, script_path: Path) -> None:
+    """Run a loaded script module's main function with isolated CLI args."""
+    original_argv = sys.argv[:]
+    try:
+        sys.argv = [str(script_path)]
+        module.main()
+    finally:
+        sys.argv = original_argv
+
+
 def scrape_data_files() -> None:
-    """Fetch latest raw CSVs and rebuild the preprocessed results CSV."""
-    from modelling.retrieve import main as retrieve_data
-    from modelling.preprocessing import main as preprocess_data
+    """Fetch latest modelling-new raw data and rebuild preprocessed results."""
+    historical_path = _MODELLING_NEW_DIR / "historical.py"
+    preprocessing_path = _MODELLING_NEW_DIR / "preprocessing.py"
+    historical = _load_module_from_path(
+        "modelling_new_historical",
+        historical_path,
+    )
+    preprocessing = _load_module_from_path(
+        "modelling_new_preprocessing",
+        preprocessing_path,
+    )
 
-    print("Step 1/2: Fetching latest fixture and result data...")
-    retrieve_data()
+    print("Step 1/2: Fetching historical fixture and result data...")
+    _run_module_main(historical, historical_path)
 
-    print("Step 2/2: Preprocessing raw CSVs into results dataset...")
-    preprocess_data()
+    print("Step 2/2: Preprocessing historical data plus current FPL results...")
+    _run_module_main(preprocessing, preprocessing_path)
 
 
 def process_existing_data() -> None:
-    """Update DB-derived data from CSV files already present on disk."""
-    print("Processing existing CSV data...")
+    """Update DB-derived data from modelling-new data and the FPL API."""
+    print("Processing modelling-new data and current FPL data...")
     app = create_app()
     with app.app_context():
         season = get_latest_epl_season()
