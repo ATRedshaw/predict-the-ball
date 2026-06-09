@@ -48,7 +48,8 @@ def create_app(config_class: type = Config) -> Flask:
         "http://localhost:5174",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:5174",
-        "https://predict-the-ball.onrender.com"         
+        "https://predict-the-ball.atredshaw.com",
+        "https://predict-the-ball.onrender.com"
     ]}}, supports_credentials=True)
 
     @jwt.token_in_blocklist_loader

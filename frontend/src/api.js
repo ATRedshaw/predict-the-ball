@@ -1,6 +1,42 @@
 import { loadingBus } from './loadingBus'
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:5000'
+const DEFAULT_BASE_URL = 'http://127.0.0.1:5000'
+
+function resolveBaseUrl() {
+  const value = import.meta.env.VITE_API_URL?.trim() || DEFAULT_BASE_URL
+
+  if (!/^https?:\/\//i.test(value)) {
+    throw new Error('VITE_API_URL must include http:// or https://')
+  }
+
+  return value.replace(/\/+$/, '')
+}
+
+const BASE_URL = resolveBaseUrl()
+
+async function readJson(res) {
+  if (res.status === 204) {
+    return { data: {}, responseError: null }
+  }
+
+  const contentType = res.headers.get('content-type') ?? ''
+
+  if (!contentType.includes('application/json')) {
+    const body = await res.text().catch(() => '')
+    const preview = body.trim().slice(0, 120)
+    const detail = preview ? `: ${preview}` : ''
+
+    return {
+      data: {},
+      responseError: `Expected JSON response from API, got ${contentType || 'unknown content type'}${detail}`,
+    }
+  }
+
+  return {
+    data: await res.json().catch(() => ({})),
+    responseError: null,
+  }
+}
 
 /**
  * Thin fetch wrapper that prepends the base API URL and handles JSON
@@ -29,7 +65,7 @@ async function request(path, options = {}, skipAutoLogout = false) {
       ...options,
     })
 
-    const data = await res.json().catch(() => ({}))
+    const { data, responseError } = await readJson(res)
 
     if (res.status === 401 && !skipAutoLogout) {
       localStorage.removeItem('access_token')
@@ -42,6 +78,10 @@ async function request(path, options = {}, skipAutoLogout = false) {
       const err = new Error(data.error || `Request failed (${res.status})`)
       err.code = data.error ?? null
       throw err
+    }
+
+    if (responseError) {
+      throw new Error(responseError)
     }
 
     return data
