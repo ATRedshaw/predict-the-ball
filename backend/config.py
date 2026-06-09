@@ -25,10 +25,20 @@ def _resolve_db_url(url: str) -> str:
     return url
 
 
+def _csv_env(name: str) -> list[str]:
+    """Parse a comma-separated environment variable."""
+    return [
+        value.strip()
+        for value in os.environ.get(name, "").split(",")
+        if value.strip()
+    ]
+
+
 class Config:
     SECRET_KEY = os.environ["SECRET_KEY"]
     SQLALCHEMY_DATABASE_URI = _resolve_db_url(os.environ["DATABASE_URL"])
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    CORS_ORIGINS = _csv_env("CORS_ORIGINS")
 
     JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
     JWT_ACCESS_TOKEN_EXPIRES = 60 * 60 * 24 * 60  # 60 days
