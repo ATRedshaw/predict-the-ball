@@ -5,6 +5,8 @@ import { PageLoadingProvider } from './PageLoadingContext'
 
 const PATH_TO_PAGE = {
   '/':                   'landing',
+  '/login':              'login',
+  '/signup':             'signup',
   '/dashboard':          'dashboard',
   '/predictions':        'predictions',
   '/standings':          'standings',
@@ -14,11 +16,6 @@ const PATH_TO_PAGE = {
   '/admin':              'admin',
 }
 
-/**
- * Root layout. Wraps every route with the shared Navbar + Footer shell.
- * Auth state is derived from localStorage — replace with a proper context
- * once auth state management is in place.
- */
 export default function Layout() {
   const { pathname } = useLocation()
   const isLoggedIn   = !!localStorage.getItem('access_token')
@@ -28,7 +25,7 @@ export default function Layout() {
 
   return (
     <PageLoadingProvider>
-      <div className="min-h-screen bg-jet p-4 md:p-6 font-sans flex flex-col">
+      <div className="min-h-screen bg-jet p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6 font-sans flex flex-col">
         <Navbar isLoggedIn={isLoggedIn} activePage={activePage} username={firstName} isAdmin={isAdmin} />
         <div className="flex-1 flex flex-col">
           <Outlet />
