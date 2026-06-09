@@ -444,7 +444,7 @@ function CompareTable({ comparison, actualUpdatedAt, projectionUpdatedAt }) {
 
   return (
     <div>
-      <div className="grid grid-cols-[1.5rem_1fr_3rem_5rem_4rem] gap-x-3 px-3 pb-2 mb-1">
+      <div className="hidden md:grid grid-cols-[1.5rem_1fr_3rem_5rem_4rem] gap-x-3 px-3 pb-2 mb-1">
         <span className="text-white/30 text-[10px] uppercase tracking-widest text-right">#</span>
         <span className="text-white/30 text-[10px] uppercase tracking-widest">Team</span>
         <span className="text-white/30 text-[10px] uppercase tracking-widest text-center">Act.</span>
@@ -460,29 +460,52 @@ function CompareTable({ comparison, actualUpdatedAt, projectionUpdatedAt }) {
             position_delta > 0    ? 'text-red-400'   :
                                     'text-white/40'
 
+          const deltaLabel =
+            position_delta == null ? '—' :
+            position_delta === 0   ? '0' :
+            position_delta > 0     ? `+${position_delta}` :
+                                     position_delta
+
           return (
-            <div
-              key={team}
-              className="grid grid-cols-[1.5rem_1fr_3rem_5rem_4rem] gap-x-3 px-3 py-2 rounded-xl bg-jet items-center"
-            >
-              <PositionBadge pos={actual_position} />
-              <span className="text-white text-sm truncate">{team}</span>
-              <span className="text-white/50 text-xs font-mono text-center">{actual_position}</span>
-              <div className="flex flex-col items-center">
-                <span className="text-white/50 text-xs font-mono">{projected_rank ?? '—'}</span>
-                {projected_mean_position != null && (
-                  <span className="text-white/20 text-[10px] font-mono">{fmt(projected_mean_position)}</span>
-                )}
+            <div key={team}>
+              <div className="md:hidden rounded-xl bg-jet px-3.5 py-3">
+                <div className="flex items-start gap-3">
+                  <PositionBadge pos={actual_position} />
+                  <span className="min-w-0 flex-1 text-white text-sm font-medium leading-snug break-words">
+                    {team}
+                  </span>
+                  <span className={`shrink-0 rounded-lg bg-jet-dark/70 px-2 py-1 text-[11px] font-mono ${deltaColour}`}>
+                    Delta {deltaLabel}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-jet-dark/70 px-2.5 py-2">
+                    <span className="block text-white/30 text-[10px] uppercase tracking-widest">Actual</span>
+                    <span className="mt-1 block text-white/65 text-sm font-mono">{actual_position ?? '—'}</span>
+                  </div>
+                  <div className="rounded-lg bg-jet-dark/70 px-2.5 py-2">
+                    <span className="block text-white/30 text-[10px] uppercase tracking-widest">Model</span>
+                    <span className="mt-1 block text-white/65 text-sm font-mono">{projected_rank ?? '—'}</span>
+                    {projected_mean_position != null && (
+                      <span className="block text-white/25 text-[10px] font-mono">mean {fmt(projected_mean_position)}</span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <span className={`text-xs font-mono text-center ${deltaColour}`}>
-                {position_delta == null
-                  ? '—'
-                  : position_delta === 0
-                  ? '0'
-                  : position_delta > 0
-                  ? `+${position_delta}`
-                  : position_delta}
-              </span>
+
+              <div className="hidden md:grid grid-cols-[1.5rem_1fr_3rem_5rem_4rem] gap-x-3 px-3 py-2 rounded-xl bg-jet items-center">
+                <PositionBadge pos={actual_position} />
+                <span className="text-white text-sm truncate">{team}</span>
+                <span className="text-white/50 text-xs font-mono text-center">{actual_position}</span>
+                <div className="flex flex-col items-center">
+                  <span className="text-white/50 text-xs font-mono">{projected_rank ?? '—'}</span>
+                  {projected_mean_position != null && (
+                    <span className="text-white/20 text-[10px] font-mono">{fmt(projected_mean_position)}</span>
+                  )}
+                </div>
+                <span className={`text-xs font-mono text-center ${deltaColour}`}>{deltaLabel}</span>
+              </div>
             </div>
           )
         })}
