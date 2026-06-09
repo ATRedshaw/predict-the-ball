@@ -38,15 +38,23 @@ function SectionHeading({ children }) {
   )
 }
 
-function TabButton({ active, onClick, children }) {
+function TabButton({ active, controls, id, onClick, mobileLabel, children }) {
   return (
     <button
+      type="button"
+      role="tab"
+      id={id}
+      aria-selected={active}
+      aria-controls={controls}
       onClick={onClick}
-      className={`text-sm px-4 py-2 rounded-xl transition-colors font-medium ${
-        active ? 'bg-teal text-white' : 'text-teal-muted hover:text-white hover:bg-white/5'
+      className={`min-w-0 rounded-xl px-3 py-2.5 text-sm font-semibold leading-tight transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-muted/70 focus-visible:ring-offset-2 focus-visible:ring-offset-jet md:px-4 ${
+        active
+          ? 'bg-teal text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_20px_rgba(0,0,0,0.18)]'
+          : 'text-teal-muted hover:bg-white/[0.04] hover:text-white'
       }`}
     >
-      {children}
+      <span className="block truncate md:hidden">{mobileLabel ?? children}</span>
+      <span className="hidden whitespace-nowrap md:block">{children}</span>
     </button>
   )
 }
@@ -671,18 +679,34 @@ export default function ModelPredictions() {
       <UserVsModel ctx={userContext} />
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-1.5">
-        <TabButton active={tab === 'projections'} onClick={() => setTab('projections')}>
+      <div
+        role="tablist"
+        aria-label="Model projection views"
+        className="grid w-full max-w-full grid-cols-2 rounded-2xl border border-white/8 bg-jet-dark/70 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:inline-grid md:w-auto md:self-start"
+      >
+        <TabButton
+          id="model-projections-tab"
+          controls="model-projections-panel"
+          active={tab === 'projections'}
+          onClick={() => setTab('projections')}
+          mobileLabel="Projections"
+        >
           Projected Finish Probabilities
         </TabButton>
-        <TabButton active={tab === 'compare'} onClick={() => setTab('compare')}>
+        <TabButton
+          id="model-compare-tab"
+          controls="model-compare-panel"
+          active={tab === 'compare'}
+          onClick={() => setTab('compare')}
+          mobileLabel="Vs actual"
+        >
           Projections vs Actual Standings
         </TabButton>
       </div>
 
       {/* ── Projections tab ── */}
       {tab === 'projections' && (
-        <div className="space-y-5">
+        <div id="model-projections-panel" role="tabpanel" aria-labelledby="model-projections-tab" className="space-y-5">
 
           {/* Date picker */}
           <div className="bg-jet-dark rounded-2xl p-5">
@@ -743,7 +767,7 @@ export default function ModelPredictions() {
 
       {/* ── Compare tab ── */}
       {tab === 'compare' && (
-        <div className="space-y-5">
+        <div id="model-compare-panel" role="tabpanel" aria-labelledby="model-compare-tab" className="space-y-5">
 
           {/* Date picker */}
           <div className="bg-jet-dark rounded-2xl p-5">
