@@ -18,7 +18,20 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
             set -e
-            cd /home/ubuntu
-            cd predict-the-ball
+
+            cd /home/ubuntu/predict-the-ball
             git pull --ff-only origin main
+
+            cd frontend
+            npm ci
+            VITE_API_URL=https://api.predict-the-ball.atredshaw.com npm run build
+
+            cd /home/ubuntu/predict-the-ball
             docker compose up -d --build predict-the-ball
+
+            sudo mkdir -p /var/www/predict-the-ball
+            sudo rsync -a --delete frontend/dist/ /var/www/predict-the-ball/
+            sudo chown -R www-data:www-data /var/www/predict-the-ball
+
+            sudo nginx -t
+            sudo systemctl reload nginx
