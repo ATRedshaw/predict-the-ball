@@ -641,42 +641,64 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
               <div
                 key={member.user_id}
                 onClick={canView ? () => setViewingMember(member) : undefined}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${isMe ? 'bg-teal/10 border border-teal/20' : 'bg-jet'} ${canView ? 'cursor-pointer hover:brightness-125 transition-[filter]' : ''}`}
+                className={`flex items-start gap-2.5 rounded-xl px-3 py-3 sm:items-center sm:gap-3 sm:py-2.5 ${isMe ? 'bg-teal/10 border border-teal/20' : 'bg-jet'} ${canView ? 'cursor-pointer hover:brightness-125 transition-[filter]' : ''}`}
               >
-                {/* rank */}
                 <span className={`font-mono text-sm w-6 text-center shrink-0 ${cls}`}>
                   {symbol}
                 </span>
 
-                {/* name + inline kick */}
-                <span className="text-white text-sm flex-1 truncate flex items-center gap-1.5 min-w-0">
-                  <span className="truncate">{member.name}</span>
-                  {isMe && <span className="text-teal-muted text-xs shrink-0">(you)</span>}
-                  {member.role === 'owner' && (
-                    <span className="text-yellow-400/60 text-[10px] uppercase tracking-wider shrink-0">owner</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <span className="truncate text-white text-sm">{member.name}</span>
+                    {isMe && <span className="hidden text-teal-muted text-xs shrink-0 sm:inline">(you)</span>}
+                    {member.role === 'owner' && (
+                      <span className="hidden text-yellow-400/60 text-[10px] uppercase tracking-wider shrink-0 sm:inline">owner</span>
+                    )}
+                    {isOwner && !isMe && !isPastSeason && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setKickTarget(member); setModal('confirm-kick') }}
+                        className="hidden text-white/20 hover:text-red-400 transition-colors shrink-0 leading-none sm:inline-flex"
+                        aria-label={`Remove ${member.name}`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                          <path d="M10 11v6" />
+                          <path d="M14 11v6" />
+                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  {(isMe || member.role === 'owner' || (isOwner && !isMe && !isPastSeason)) && (
+                    <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 sm:hidden">
+                      {isMe && <span className="text-teal-muted text-xs">(you)</span>}
+                      {member.role === 'owner' && (
+                        <span className="text-yellow-400/60 text-[10px] uppercase tracking-wider">owner</span>
+                      )}
+                      {isOwner && !isMe && !isPastSeason && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setKickTarget(member); setModal('confirm-kick') }}
+                          className="text-white/30 hover:text-red-400 transition-colors leading-none"
+                          aria-label={`Remove ${member.name}`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                            <path d="M10 11v6" />
+                            <path d="M14 11v6" />
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   )}
-                  {isOwner && !isMe && !isPastSeason && (
-                    <button
-                      onClick={e => { e.stopPropagation(); setKickTarget(member); setModal('confirm-kick') }}
-                      className="text-white/20 hover:text-red-400 transition-colors shrink-0 leading-none"
-                      aria-label={`Remove ${member.name}`}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                        <path d="M10 11v6" />
-                        <path d="M14 11v6" />
-                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                      </svg>
-                    </button>
-                  )}
-                </span>
+                </div>
 
-                {/* prediction status / score */}
                 {league.kicked_off ? (
                   member.current_points != null
                     ? (
-                      <div className="text-right shrink-0">
+                      <div className="w-[4.75rem] text-right shrink-0">
                         <p className="text-white font-mono text-sm font-bold">{member.current_points} pts</p>
                         {member.exact_predictions != null && (
                           <p className="text-teal-muted font-mono text-[10px]">{member.exact_predictions} exact</p>
@@ -684,8 +706,8 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
                       </div>
                     )
                     : member.has_prediction
-                      ? <span className="text-white/30 text-xs shrink-0 italic">Score pending</span>
-                      : <span className="text-white/30 text-xs shrink-0 italic">No prediction</span>
+                      ? <span className="w-[4.75rem] text-right text-white/30 text-xs shrink-0 italic">Pending</span>
+                      : <span className="w-[4.75rem] text-right text-white/30 text-xs shrink-0 italic">No pick</span>
                 ) : (
                   member.has_prediction
                     ? <Badge colour="teal">Predicted</Badge>
