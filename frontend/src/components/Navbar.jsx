@@ -24,9 +24,7 @@ export default function Navbar({ isLoggedIn = false, username = '', activePage =
 
       {/* Logo */}
       <Link to={isLoggedIn ? '/dashboard' : '/'} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-        <div className="w-7 h-7 rounded-md bg-teal flex items-center justify-center">
-          <span className="text-white text-xs font-bold">⚽</span>
-        </div>
+        <img src="/icon-192-maskable.png" alt="" className="w-7 h-7 rounded-md" />
         <span className="text-white font-semibold tracking-tight text-lg">PredictTheBall</span>
       </Link>
 
