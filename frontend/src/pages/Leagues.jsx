@@ -53,15 +53,12 @@ function Badge({ children, colour = 'teal' }) {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Rank medal colours for top 3
-// ---------------------------------------------------------------------------
-
 function rankLabel(rank) {
-  if (rank === 1) return { symbol: '🥇', cls: 'text-yellow-400' }
-  if (rank === 2) return { symbol: '🥈', cls: 'text-white/60' }
-  if (rank === 3) return { symbol: '🥉', cls: 'text-amber-600' }
-  return { symbol: String(rank), cls: 'text-white/40' }
+  const symbol = String(rank)
+  if (rank === 1) return { symbol, cls: 'text-yellow-400' }
+  if (rank === 2) return { symbol, cls: 'text-white/60' }
+  if (rank === 3) return { symbol, cls: 'text-amber-600' }
+  return { symbol, cls: 'text-white/40' }
 }
 
 // ---------------------------------------------------------------------------
@@ -641,9 +638,9 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
               <div
                 key={member.user_id}
                 onClick={canView ? () => setViewingMember(member) : undefined}
-                className={`flex items-start gap-2.5 rounded-xl px-3 py-3 sm:items-center sm:gap-3 sm:py-2.5 ${isMe ? 'bg-teal/10 border border-teal/20' : 'bg-jet'} ${canView ? 'cursor-pointer hover:brightness-125 transition-[filter]' : ''}`}
+                className={`flex items-center gap-2.5 rounded-xl px-3 py-3 sm:gap-3 sm:py-2.5 ${isMe ? 'bg-teal/10 border border-teal/20' : 'bg-jet'} ${canView ? 'cursor-pointer hover:brightness-125 transition-[filter]' : ''}`}
               >
-                <span className={`font-mono text-sm w-6 text-center shrink-0 ${cls}`}>
+                <span className={`inline-flex h-6 w-6 shrink-0 items-center justify-center font-mono text-sm font-semibold leading-none ${cls}`}>
                   {symbol}
                 </span>
 
