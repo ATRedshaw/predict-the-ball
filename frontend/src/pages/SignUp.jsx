@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
+import { markInstallPromptAfterAuth } from '../pwa/installPrompt'
 
 /** Two-step sign-up: collect details → verify email code. */
 export default function SignUp() {
@@ -53,6 +54,7 @@ export default function SignUp() {
       const me = await api.get('/api/auth/me')
       localStorage.setItem('first_name', me.first_name)
       localStorage.setItem('is_admin', me.is_admin ? 'true' : 'false')
+      markInstallPromptAfterAuth()
       navigate('/dashboard')
     } catch (err) {
       setError(err.message)
