@@ -1,14 +1,14 @@
 import sqlite3
+from pathlib import Path
 
 from flask import Flask
 from flask_cors import CORS
-from pathlib import Path
-from sqlalchemy import event, text
+from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
 from admin_cli import create_admin_command
 from config import Config
-from extensions import db, jwt, mail, bcrypt, limiter
+from extensions import bcrypt, db, jwt, limiter, mail, migrate
 from routes import admin_bp, auth_bp, leagues_bp, predictions_bp, standings_bp, users_bp
 
 
@@ -22,6 +22,12 @@ def _set_sqlite_fk_pragma(dbapi_connection, _connection_record) -> None:
 
 # In-memory JWT blocklist. Replace with a persistent store (Redis, DB) in production.
 _jwt_blocklist: set[str] = set()
+
+
+def _prepare_sqlite_database_directory(db_url: str) -> None:
+    if db_url.startswith("sqlite:///"):
+        db_path = Path(db_url[len("sqlite:///"):])
+        db_path.parent.mkdir(parents=True, exist_ok=True)
 
 
 def create_app(config_class: type = Config) -> Flask:
@@ -39,6 +45,7 @@ def create_app(config_class: type = Config) -> Flask:
 
     # Initialise extensions
     db.init_app(app)
+    migrate.init_app(app, db, compare_type=True, render_as_batch=True)
     jwt.init_app(app)
     mail.init_app(app)
     bcrypt.init_app(app)
@@ -55,16 +62,8 @@ def create_app(config_class: type = Config) -> Flask:
     def check_if_token_revoked(jwt_header, jwt_payload) -> bool:
         return jwt_payload["jti"] in _jwt_blocklist
 
-    with app.app_context():
-        import models  # noqa: F401
-
-        # Ensure the directory for the SQLite file exists before create_all.
-        db_url = app.config.get("SQLALCHEMY_DATABASE_URI", "")
-        if db_url.startswith("sqlite:///"):
-            db_path = Path(db_url[len("sqlite:///"):])
-            db_path.parent.mkdir(parents=True, exist_ok=True)
-
-        db.create_all()
+    _prepare_sqlite_database_directory(app.config.get("SQLALCHEMY_DATABASE_URI", ""))
+    import models  # noqa: F401
 
     # Register blueprints
     app.register_blueprint(admin_bp)

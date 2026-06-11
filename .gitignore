@@ -11,6 +11,10 @@ backend/modelling/modelling_config.yaml
 .env
 temp.py
 migrations/
+!backend/migrations/
+!backend/migrations/**
+backend/migrations/**/__pycache__/
+backend/migrations/**/*.pyc
 instance/
 data/
 backup-data/

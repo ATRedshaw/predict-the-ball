@@ -18,6 +18,8 @@ def _resolve_db_url(url: str) -> str:
         URL with an absolute file path when the scheme is sqlite, otherwise
         the original string unchanged.
     """
+    if url == "sqlite:///:memory:":
+        return url
     if url.startswith("sqlite:///") and not url.startswith("sqlite:////"):
         relative_part = url[len("sqlite:///"):]
         absolute_path = _BASE_DIR / relative_part
