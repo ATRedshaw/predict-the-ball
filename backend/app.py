@@ -6,6 +6,7 @@ from pathlib import Path
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 
+from admin_cli import create_admin_command
 from config import Config
 from extensions import db, jwt, mail, bcrypt, limiter
 from routes import admin_bp, auth_bp, leagues_bp, predictions_bp, standings_bp, users_bp
@@ -42,6 +43,7 @@ def create_app(config_class: type = Config) -> Flask:
     mail.init_app(app)
     bcrypt.init_app(app)
     limiter.init_app(app)
+    app.cli.add_command(create_admin_command)
 
     CORS(
         app,

@@ -116,9 +116,7 @@ def register():
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "email already registered"}), 409
 
-    is_first_user = User.query.count() == 0
-
-    user = User(first_name=first_name, last_name=last_name, email=email, is_admin=is_first_user)
+    user = User(first_name=first_name, last_name=last_name, email=email)
     user.set_password(password)
     db.session.add(user)
     db.session.flush()  # get user.id without committing
@@ -629,4 +627,3 @@ def reset_password():
     user.set_password(new_password)
     db.session.commit()
     return jsonify({"message": "Password updated successfully"}), 200
-
