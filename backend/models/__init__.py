@@ -5,7 +5,6 @@ from models.user_prediction import UserPrediction
 from models.actual_standing import ActualStanding
 from models.elo_projection import EloProjection
 from models.points_deduction import PointsDeduction
-from models.revoked_token import RevokedToken
 
 __all__ = [
     "User",
@@ -15,5 +14,4 @@ __all__ = [
     "ActualStanding",
     "EloProjection",
     "PointsDeduction",
-    "RevokedToken",
 ]

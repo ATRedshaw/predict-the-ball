@@ -14,13 +14,6 @@ from models.user import User
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 
-def _create_access_token(user: User) -> str:
-    return create_access_token(
-        identity=str(user.id),
-        additional_claims={"token_version": user.token_version},
-    )
-
-
 def _send_verification_email(user: User, code: str) -> None:
     """Send a 6-digit verification code email to the given user.
 
@@ -234,7 +227,7 @@ def login():
             _send_verification_email(user, code)
         return jsonify({"error": "email_not_verified", "code_valid": code_valid}), 403
 
-    access_token = _create_access_token(user)
+    access_token = create_access_token(identity=str(user.id))
     return jsonify({"access_token": access_token}), 200
 
 
@@ -248,10 +241,10 @@ def logout():
     Returns:
         200 on success.
     """
-    from app import revoke_jwt
+    from app import get_jwt_blocklist
 
-    revoke_jwt(get_jwt())
-    db.session.commit()
+    jti = get_jwt()["jti"]
+    get_jwt_blocklist().add(jti)
     return jsonify({"message": "logged out successfully"}), 200
 
 
@@ -365,7 +358,6 @@ def reset_forgotten_password():
         return jsonify({"error": "reset code has expired — request a new one"}), 400
 
     user.set_password(new_password)
-    user.invalidate_tokens()
     user.password_reset_code = None
     user.password_reset_code_expires_at = None
     user.password_reset_code_sent_at = None
@@ -491,7 +483,7 @@ def delete_account():
     Returns:
         200 on success, 400 on invalid/cap-exceeding transfer target, 404 if user not found.
     """
-    from app import revoke_jwt
+    from app import get_jwt_blocklist
     from models.league import League
     from models.league_member import LeagueMember
 
@@ -513,7 +505,6 @@ def delete_account():
     user = db.session.get(User, user_id)
     if not user:
         return jsonify({"error": "user not found"}), 404
-    jwt_payload = get_jwt()
 
     data = request.get_json(silent=True) or {}
     transfers = data.get("transfers") or {}
@@ -596,8 +587,11 @@ def delete_account():
     # Delete the user. ORM cascades on User.league_memberships and
     # User.predictions handle the remaining child rows.
     db.session.delete(user)
-    revoke_jwt(jwt_payload)
     db.session.commit()
+
+    # Blocklist the current token so it cannot be reused.
+    jti = get_jwt()["jti"]
+    get_jwt_blocklist().add(jti)
 
     return jsonify({"message": "account deleted"}), 200
 
@@ -631,6 +625,5 @@ def reset_password():
         return jsonify({"error": "Current password is incorrect"}), 401
 
     user.set_password(new_password)
-    user.invalidate_tokens()
     db.session.commit()
     return jsonify({"message": "Password updated successfully"}), 200
