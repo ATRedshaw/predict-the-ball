@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import Flask
@@ -20,14 +21,15 @@ def _set_sqlite_fk_pragma(dbapi_connection, _connection_record) -> None:
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
-# In-memory JWT blocklist. Replace with a persistent store (Redis, DB) in production.
-_jwt_blocklist: set[str] = set()
-
 
 def _prepare_sqlite_database_directory(db_url: str) -> None:
     if db_url.startswith("sqlite:///"):
         db_path = Path(db_url[len("sqlite:///"):])
         db_path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _jwt_timestamp_to_utc(timestamp: int) -> datetime:
+    return datetime.fromtimestamp(timestamp, timezone.utc).replace(tzinfo=None)
 
 
 def create_app(config_class: type = Config) -> Flask:
@@ -59,8 +61,33 @@ def create_app(config_class: type = Config) -> Flask:
     )
 
     @jwt.token_in_blocklist_loader
-    def check_if_token_revoked(jwt_header, jwt_payload) -> bool:
-        return jwt_payload["jti"] in _jwt_blocklist
+    def check_if_token_revoked(_jwt_header, jwt_payload) -> bool:
+        from models.revoked_token import RevokedToken
+        from models.user import User
+
+        now = datetime.utcnow()
+        jti = jwt_payload["jti"]
+        revoked = RevokedToken.query.filter(
+            RevokedToken.jti == jti,
+            RevokedToken.expires_at > now,
+        ).first()
+        if revoked is not None:
+            return True
+
+        token_version = jwt_payload.get("token_version")
+        if token_version is None:
+            return True
+
+        try:
+            user_id = int(jwt_payload.get("sub"))
+        except (TypeError, ValueError):
+            return True
+
+        user = db.session.get(User, user_id)
+        if user is None:
+            return True
+
+        return token_version != user.token_version
 
     _prepare_sqlite_database_directory(app.config.get("SQLALCHEMY_DATABASE_URI", ""))
     import models  # noqa: F401
@@ -76,13 +103,15 @@ def create_app(config_class: type = Config) -> Flask:
     return app
 
 
-def get_jwt_blocklist() -> set[str]:
-    """Return the application-level JWT blocklist set.
+def revoke_jwt(jwt_payload: dict) -> None:
+    from models.revoked_token import RevokedToken
 
-    Returns:
-        The set of revoked JWT IDs.
-    """
-    return _jwt_blocklist
+    jti = jwt_payload["jti"]
+    if db.session.get(RevokedToken, jti) is None:
+        db.session.add(RevokedToken(
+            jti=jti,
+            expires_at=_jwt_timestamp_to_utc(jwt_payload["exp"]),
+        ))
 
 
 if __name__ == "__main__":

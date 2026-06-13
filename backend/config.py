@@ -43,7 +43,7 @@ class Config:
     CORS_ORIGINS = _csv_env("CORS_ORIGINS")
 
     JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
-    JWT_ACCESS_TOKEN_EXPIRES = 60 * 60 * 24 * 60  # 60 days
+    JWT_ACCESS_TOKEN_EXPIRES = 15 * 60
 
     MAIL_SERVER = os.environ["MAIL_SERVER"]
     MAIL_PORT = int(os.environ["MAIL_PORT"])

@@ -17,6 +17,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    token_version = db.Column(db.Integer, default=0, server_default="0", nullable=False)
     verification_code = db.Column(db.String(6), nullable=True)
     verification_code_expires_at = db.Column(db.DateTime, nullable=True)
     verification_code_sent_at = db.Column(db.DateTime, nullable=True)
@@ -90,6 +91,9 @@ class User(db.Model):
             password: Plaintext password to hash.
         """
         self.password_hash = bcrypt.generate_password_hash(password).decode("utf-8")
+
+    def invalidate_tokens(self) -> None:
+        self.token_version = (self.token_version or 0) + 1
 
     def check_password(self, password: str) -> bool:
         """Verify a plaintext password against the stored hash.
