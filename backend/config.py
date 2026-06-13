@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -36,6 +37,13 @@ def _csv_env(name: str) -> list[str]:
     ]
 
 
+def _bool_env(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 class Config:
     SECRET_KEY = os.environ["SECRET_KEY"]
     SQLALCHEMY_DATABASE_URI = _resolve_db_url(os.environ["DATABASE_URL"])
@@ -43,7 +51,20 @@ class Config:
     CORS_ORIGINS = _csv_env("CORS_ORIGINS")
 
     JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
-    JWT_ACCESS_TOKEN_EXPIRES = 60 * 60 * 24 * 60  # 60 days
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(
+        minutes=int(os.environ.get("JWT_ACCESS_TOKEN_MINUTES", "15")),
+    )
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(
+        days=int(os.environ.get("JWT_REFRESH_TOKEN_DAYS", "60")),
+    )
+
+    REFRESH_COOKIE_NAME = os.environ.get("REFRESH_COOKIE_NAME", "ptb_refresh_token")
+    REFRESH_COOKIE_PATH = "/api/auth"
+    REFRESH_COOKIE_SAMESITE = os.environ.get("REFRESH_COOKIE_SAMESITE", "Lax")
+    REFRESH_COOKIE_SECURE = _bool_env(
+        "REFRESH_COOKIE_SECURE",
+        any(origin.startswith("https://") for origin in CORS_ORIGINS),
+    )
 
     MAIL_SERVER = os.environ["MAIL_SERVER"]
     MAIL_PORT = int(os.environ["MAIL_PORT"])

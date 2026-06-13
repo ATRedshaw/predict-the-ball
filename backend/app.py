@@ -1,3 +1,4 @@
+import hashlib
 import sqlite3
 from pathlib import Path
 
@@ -19,9 +20,6 @@ def _set_sqlite_fk_pragma(dbapi_connection, _connection_record) -> None:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
-
-# In-memory JWT blocklist. Replace with a persistent store (Redis, DB) in production.
-_jwt_blocklist: set[str] = set()
 
 
 def _prepare_sqlite_database_directory(db_url: str) -> None:
@@ -59,8 +57,31 @@ def create_app(config_class: type = Config) -> Flask:
     )
 
     @jwt.token_in_blocklist_loader
-    def check_if_token_revoked(jwt_header, jwt_payload) -> bool:
-        return jwt_payload["jti"] in _jwt_blocklist
+    def check_if_token_revoked(_jwt_header, jwt_payload) -> bool:
+        if jwt_payload.get("type") != "access":
+            return False
+
+        from models.revoked_token import RevokedToken
+        from models.user import User
+
+        jti = jwt_payload.get("jti")
+        if not jti:
+            return True
+
+        jti_hash = hashlib.sha256(jti.encode("utf-8")).hexdigest()
+        if RevokedToken.query.filter_by(jti_hash=jti_hash).first():
+            return True
+
+        try:
+            user_id = int(jwt_payload.get("sub"))
+        except (TypeError, ValueError):
+            return True
+
+        user = db.session.get(User, user_id)
+        if not user:
+            return True
+
+        return jwt_payload.get("token_version") != user.token_version
 
     _prepare_sqlite_database_directory(app.config.get("SQLALCHEMY_DATABASE_URI", ""))
     import models  # noqa: F401
@@ -74,15 +95,6 @@ def create_app(config_class: type = Config) -> Flask:
     app.register_blueprint(users_bp)
 
     return app
-
-
-def get_jwt_blocklist() -> set[str]:
-    """Return the application-level JWT blocklist set.
-
-    Returns:
-        The set of revoked JWT IDs.
-    """
-    return _jwt_blocklist
 
 
 if __name__ == "__main__":

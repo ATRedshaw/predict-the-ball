@@ -18,6 +18,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    token_version = db.Column(db.Integer, nullable=False, default=0, server_default="0")
     verification_code = db.Column(db.String(6), nullable=True)
     verification_code_expires_at = db.Column(db.DateTime, nullable=True)
     verification_code_sent_at = db.Column(db.DateTime, nullable=True)
@@ -39,6 +40,10 @@ class User(db.Model):
     )
     predictions = db.relationship(
         "UserPrediction", back_populates="user", lazy="dynamic",
+        cascade="all, delete-orphan", passive_deletes=True,
+    )
+    refresh_sessions = db.relationship(
+        "RefreshSession", back_populates="user", lazy="dynamic",
         cascade="all, delete-orphan", passive_deletes=True,
     )
 
