@@ -5,6 +5,7 @@ from extensions import db, bcrypt
 
 _CODE_TTL_MINUTES = 15
 _RESEND_COOLDOWN_SECONDS = 60
+_MAX_FAILED_CODE_ATTEMPTS = 5
 
 
 class User(db.Model):
@@ -20,9 +21,15 @@ class User(db.Model):
     verification_code = db.Column(db.String(6), nullable=True)
     verification_code_expires_at = db.Column(db.DateTime, nullable=True)
     verification_code_sent_at = db.Column(db.DateTime, nullable=True)
+    verification_code_failed_attempts = db.Column(
+        db.Integer, nullable=False, default=0, server_default="0"
+    )
     password_reset_code = db.Column(db.String(6), nullable=True)
     password_reset_code_expires_at = db.Column(db.DateTime, nullable=True)
     password_reset_code_sent_at = db.Column(db.DateTime, nullable=True)
+    password_reset_code_failed_attempts = db.Column(
+        db.Integer, nullable=False, default=0, server_default="0"
+    )
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -46,7 +53,23 @@ class User(db.Model):
         self.verification_code = code
         self.verification_code_expires_at = now + timedelta(minutes=_CODE_TTL_MINUTES)
         self.verification_code_sent_at = now
+        self.verification_code_failed_attempts = 0
         return code
+
+    def clear_verification_code(self) -> None:
+        self.verification_code = None
+        self.verification_code_expires_at = None
+        self.verification_code_sent_at = None
+        self.verification_code_failed_attempts = 0
+
+    def record_failed_verification_code_attempt(self) -> bool:
+        self.verification_code_failed_attempts = (
+            self.verification_code_failed_attempts or 0
+        ) + 1
+        if self.verification_code_failed_attempts >= _MAX_FAILED_CODE_ATTEMPTS:
+            self.clear_verification_code()
+            return True
+        return False
 
     def can_resend_verification_code(self) -> bool:
         """Check whether enough time has passed to send another verification code.
@@ -70,7 +93,23 @@ class User(db.Model):
         self.password_reset_code = code
         self.password_reset_code_expires_at = now + timedelta(minutes=_CODE_TTL_MINUTES)
         self.password_reset_code_sent_at = now
+        self.password_reset_code_failed_attempts = 0
         return code
+
+    def clear_password_reset_code(self) -> None:
+        self.password_reset_code = None
+        self.password_reset_code_expires_at = None
+        self.password_reset_code_sent_at = None
+        self.password_reset_code_failed_attempts = 0
+
+    def record_failed_password_reset_code_attempt(self) -> bool:
+        self.password_reset_code_failed_attempts = (
+            self.password_reset_code_failed_attempts or 0
+        ) + 1
+        if self.password_reset_code_failed_attempts >= _MAX_FAILED_CODE_ATTEMPTS:
+            self.clear_password_reset_code()
+            return True
+        return False
 
     def can_resend_password_reset_code(self) -> bool:
         """Check whether enough time has passed to send another password-reset code.

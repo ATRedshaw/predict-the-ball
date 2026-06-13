@@ -151,14 +151,21 @@ def verify_email():
         return jsonify({"error": "user not found"}), 404
     if user.is_verified:
         return jsonify({"message": "email already verified"}), 200
-    if not user.verification_code or user.verification_code != code:
+    if not user.verification_code or not user.verification_code_expires_at:
         return jsonify({"error": "invalid verification code"}), 400
     if user.verification_code_expires_at < datetime.utcnow():
+        user.clear_verification_code()
+        db.session.commit()
         return jsonify({"error": "verification code has expired — request a new one"}), 400
+    if user.verification_code != code:
+        code_invalidated = user.record_failed_verification_code_attempt()
+        db.session.commit()
+        if code_invalidated:
+            return jsonify({"error": "too many failed attempts; request a new verification code"}), 400
+        return jsonify({"error": "invalid verification code"}), 400
 
     user.is_verified = True
-    user.verification_code = None
-    user.verification_code_expires_at = None
+    user.clear_verification_code()
     db.session.commit()
     return jsonify({"message": "email verified successfully"}), 200
 
@@ -352,15 +359,21 @@ def reset_forgotten_password():
     user = User.query.filter_by(email=email).first()
     if not user:
         return jsonify({"error": "user not found"}), 404
-    if not user.password_reset_code or user.password_reset_code != code:
+    if not user.password_reset_code or not user.password_reset_code_expires_at:
         return jsonify({"error": "invalid reset code"}), 400
     if user.password_reset_code_expires_at < datetime.utcnow():
+        user.clear_password_reset_code()
+        db.session.commit()
         return jsonify({"error": "reset code has expired — request a new one"}), 400
+    if user.password_reset_code != code:
+        code_invalidated = user.record_failed_password_reset_code_attempt()
+        db.session.commit()
+        if code_invalidated:
+            return jsonify({"error": "too many failed attempts; request a new reset code"}), 400
+        return jsonify({"error": "invalid reset code"}), 400
 
     user.set_password(new_password)
-    user.password_reset_code = None
-    user.password_reset_code_expires_at = None
-    user.password_reset_code_sent_at = None
+    user.clear_password_reset_code()
     db.session.commit()
     return jsonify({"message": "password reset successfully"}), 200
 
