@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
+import { clearAuthState, setAuthUser, useAuth } from '../authState'
 import { usePageLoading } from '../components/PageLoadingContext'
 
 // ─── Small reusable section wrapper ───────────────────────────────────────────
@@ -37,6 +38,7 @@ function Field({ label, children }) {
 export default function Settings() {
   const navigate = useNavigate()
   const { setPageLoading } = usePageLoading()
+  const { user } = useAuth()
 
   // Profile state
   const [firstName,     setFirstName]     = useState('')
@@ -101,11 +103,9 @@ export default function Settings() {
     try {
       await api.post('/api/auth/logout', {})
     } catch {
-      // Token may already be invalid — clear it regardless
+      // The session may already be invalid locally or on the server.
     }
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('first_name')
-    localStorage.removeItem('is_admin')
+    clearAuthState()
     navigate('/')
   }
 
@@ -122,7 +122,10 @@ export default function Settings() {
       setLastName(updated.last_name)
       setSavedFirstName(updated.first_name)
       setSavedLastName(updated.last_name)
-      localStorage.setItem('first_name', updated.first_name)
+      setAuthUser({
+        ...(user ?? {}),
+        ...updated,
+      })
       setProfileMsg({ type: 'ok', text: 'Profile updated.' })
     } catch (err) {
       setProfileMsg({ type: 'err', text: err.message })
@@ -153,7 +156,8 @@ export default function Settings() {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      setPasswordMsg({ type: 'ok', text: 'Password updated.' })
+      clearAuthState()
+      navigate('/login')
     } catch (err) {
       setPasswordMsg({ type: 'err', text: err.message })
     } finally {
@@ -180,9 +184,7 @@ export default function Settings() {
     setDeleteBusy(true)
     try {
       await api.delete('/api/auth/me', { transfers: transferMap })
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('first_name')
-      localStorage.removeItem('is_admin')
+      clearAuthState()
       navigate('/')
     } catch (err) {
       setDeleteMsg({ type: 'err', text: err.message })
