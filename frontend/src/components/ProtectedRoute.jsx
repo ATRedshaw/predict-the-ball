@@ -1,10 +1,11 @@
 import { Navigate, Outlet } from 'react-router-dom'
+import { useAuth } from '../authState'
 
-/**
- * Wraps routes that require authentication.
- * Redirects to / if no token is present.
- */
 export default function ProtectedRoute() {
-  const isLoggedIn = !!localStorage.getItem('access_token')
+  const { accessToken, ready } = useAuth()
+  const isLoggedIn = !!accessToken
+
+  if (!ready) return null
+
   return isLoggedIn ? <Outlet /> : <Navigate to="/" replace />
 }

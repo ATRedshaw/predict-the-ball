@@ -1,17 +1,174 @@
+import hashlib
+from datetime import datetime
+
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import (
     create_access_token,
+    create_refresh_token,
+    decode_token,
     get_jwt,
     get_jwt_identity,
     jwt_required,
 )
+from flask_jwt_extended.exceptions import JWTExtendedException
 from flask_mail import Message
-from datetime import datetime
+from jwt import PyJWTError
 
 from extensions import db, mail, limiter
+from models.refresh_session import RefreshSession
+from models.revoked_token import RevokedToken
 from models.user import User
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
+
+
+def _hash_token(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _timestamp_to_utc(timestamp: int) -> datetime:
+    return datetime.utcfromtimestamp(timestamp)
+
+
+def _user_payload(user: User) -> dict:
+    return {
+        "id": user.id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "email": user.email,
+        "is_verified": user.is_verified,
+        "is_admin": user.is_admin,
+        "created_at": user.created_at.isoformat(),
+    }
+
+
+def _access_token_for(user: User) -> str:
+    return create_access_token(
+        identity=str(user.id),
+        additional_claims={"token_version": user.token_version},
+    )
+
+
+def _refresh_cookie_max_age() -> int:
+    expires = current_app.config["JWT_REFRESH_TOKEN_EXPIRES"]
+    if hasattr(expires, "total_seconds"):
+        return int(expires.total_seconds())
+    return int(expires)
+
+
+def _set_refresh_cookie(response, refresh_token: str) -> None:
+    response.set_cookie(
+        current_app.config["REFRESH_COOKIE_NAME"],
+        refresh_token,
+        max_age=_refresh_cookie_max_age(),
+        httponly=True,
+        secure=current_app.config["REFRESH_COOKIE_SECURE"],
+        samesite=current_app.config["REFRESH_COOKIE_SAMESITE"],
+        path=current_app.config["REFRESH_COOKIE_PATH"],
+    )
+
+
+def _clear_refresh_cookie(response) -> None:
+    response.delete_cookie(
+        current_app.config["REFRESH_COOKIE_NAME"],
+        secure=current_app.config["REFRESH_COOKIE_SECURE"],
+        samesite=current_app.config["REFRESH_COOKIE_SAMESITE"],
+        path=current_app.config["REFRESH_COOKIE_PATH"],
+    )
+
+
+def _decode_refresh_cookie() -> dict | None:
+    token = request.cookies.get(current_app.config["REFRESH_COOKIE_NAME"])
+    if not token:
+        return None
+    try:
+        claims = decode_token(token)
+    except (JWTExtendedException, PyJWTError, KeyError, TypeError, ValueError):
+        return None
+    if claims.get("type") != "refresh":
+        return None
+    return claims
+
+
+def _build_refresh_session(user: User) -> tuple[str, RefreshSession]:
+    refresh_token = create_refresh_token(identity=str(user.id))
+    claims = decode_token(refresh_token)
+    user_agent = request.user_agent.string[:255] if request.user_agent else None
+    session = RefreshSession(
+        user_id=user.id,
+        token_hash=_hash_token(claims["jti"]),
+        expires_at=_timestamp_to_utc(claims["exp"]),
+        user_agent=user_agent,
+        ip_address=request.remote_addr,
+    )
+    return refresh_token, session
+
+
+def _auth_response(user: User, status: int = 200):
+    refresh_token, refresh_session = _build_refresh_session(user)
+    db.session.add(refresh_session)
+    db.session.commit()
+
+    response = jsonify({
+        "access_token": _access_token_for(user),
+        "user": _user_payload(user),
+    })
+    _set_refresh_cookie(response, refresh_token)
+    return response, status
+
+
+def _prune_expired_auth_rows(now: datetime) -> None:
+    expired_session_ids = db.select(RefreshSession.id).where(
+        RefreshSession.expires_at <= now,
+    )
+    RefreshSession.query.filter(
+        RefreshSession.replaced_by_session_id.in_(expired_session_ids),
+    ).update({"replaced_by_session_id": None}, synchronize_session=False)
+    RefreshSession.query.filter(RefreshSession.expires_at <= now).delete(
+        synchronize_session=False,
+    )
+    RevokedToken.query.filter(RevokedToken.expires_at <= now).delete(
+        synchronize_session=False,
+    )
+
+
+def _revoke_all_refresh_sessions(user_id: int, now: datetime | None = None) -> None:
+    RefreshSession.query.filter_by(user_id=user_id, revoked_at=None).update(
+        {"revoked_at": now or datetime.utcnow()},
+        synchronize_session=False,
+    )
+
+
+def _revoke_current_refresh_session(now: datetime | None = None) -> None:
+    claims = _decode_refresh_cookie()
+    if not claims:
+        return
+
+    session = RefreshSession.query.filter_by(
+        token_hash=_hash_token(claims["jti"]),
+        revoked_at=None,
+    ).first()
+    if session:
+        session.revoked_at = now or datetime.utcnow()
+
+
+def _revoke_access_token(jwt_data: dict, now: datetime | None = None) -> None:
+    jti = jwt_data.get("jti")
+    exp = jwt_data.get("exp")
+    if not jti or not exp:
+        return
+
+    now = now or datetime.utcnow()
+
+    jti_hash = _hash_token(jti)
+    if RevokedToken.query.filter_by(jti_hash=jti_hash).first():
+        return
+
+    db.session.add(RevokedToken(
+        jti_hash=jti_hash,
+        expires_at=_timestamp_to_utc(exp),
+        created_at=now,
+    ))
 
 
 def _send_verification_email(user: User, code: str) -> None:
@@ -116,9 +273,7 @@ def register():
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "email already registered"}), 409
 
-    is_first_user = User.query.count() == 0
-
-    user = User(first_name=first_name, last_name=last_name, email=email, is_admin=is_first_user)
+    user = User(first_name=first_name, last_name=last_name, email=email)
     user.set_password(password)
     db.session.add(user)
     db.session.flush()  # get user.id without committing
@@ -153,14 +308,21 @@ def verify_email():
         return jsonify({"error": "user not found"}), 404
     if user.is_verified:
         return jsonify({"message": "email already verified"}), 200
-    if not user.verification_code or user.verification_code != code:
+    if not user.verification_code or not user.verification_code_expires_at:
         return jsonify({"error": "invalid verification code"}), 400
     if user.verification_code_expires_at < datetime.utcnow():
+        user.clear_verification_code()
+        db.session.commit()
         return jsonify({"error": "verification code has expired — request a new one"}), 400
+    if user.verification_code != code:
+        code_invalidated = user.record_failed_verification_code_attempt()
+        db.session.commit()
+        if code_invalidated:
+            return jsonify({"error": "too many failed attempts; request a new verification code"}), 400
+        return jsonify({"error": "invalid verification code"}), 400
 
     user.is_verified = True
-    user.verification_code = None
-    user.verification_code_expires_at = None
+    user.clear_verification_code()
     db.session.commit()
     return jsonify({"message": "email verified successfully"}), 200
 
@@ -200,7 +362,7 @@ def resend_verification():
 @auth_bp.post("/login")
 @limiter.limit("10 per minute")
 def login():
-    """Authenticate a user and return a JWT access token.
+    """Authenticate a user and start a refresh-backed session.
 
     Body: { email, password }
 
@@ -229,25 +391,89 @@ def login():
             _send_verification_email(user, code)
         return jsonify({"error": "email_not_verified", "code_valid": code_valid}), 403
 
-    access_token = create_access_token(identity=str(user.id))
-    return jsonify({"access_token": access_token}), 200
+    _prune_expired_auth_rows(datetime.utcnow())
+    return _auth_response(user)
+
+
+@auth_bp.post("/refresh")
+def refresh():
+    """Rotate a refresh session and return a fresh access token."""
+    claims = _decode_refresh_cookie()
+    if not claims:
+        response = jsonify({"error": "invalid session"})
+        _clear_refresh_cookie(response)
+        return response, 401
+
+    now = datetime.utcnow()
+    _prune_expired_auth_rows(now)
+    session = RefreshSession.query.filter_by(
+        token_hash=_hash_token(claims["jti"]),
+    ).first()
+    if not session:
+        response = jsonify({"error": "invalid session"})
+        _clear_refresh_cookie(response)
+        return response, 401
+
+    if session.revoked_at is not None:
+        if session.replaced_by_session_id is not None:
+            _revoke_all_refresh_sessions(session.user_id, now)
+            user = db.session.get(User, session.user_id)
+            if user:
+                user.token_version += 1
+            db.session.commit()
+        response = jsonify({"error": "invalid session"})
+        _clear_refresh_cookie(response)
+        return response, 401
+
+    if session.expires_at <= now:
+        session.revoked_at = now
+        db.session.commit()
+        response = jsonify({"error": "session expired"})
+        _clear_refresh_cookie(response)
+        return response, 401
+
+    user = session.user
+    if not user or not user.is_verified:
+        session.revoked_at = now
+        db.session.commit()
+        response = jsonify({"error": "invalid session"})
+        _clear_refresh_cookie(response)
+        return response, 401
+
+    refresh_token, refresh_session = _build_refresh_session(user)
+    session.revoked_at = now
+    db.session.add(refresh_session)
+    db.session.flush()
+    session.replaced_by_session_id = refresh_session.id
+    db.session.commit()
+
+    response = jsonify({
+        "access_token": _access_token_for(user),
+        "user": _user_payload(user),
+    })
+    _set_refresh_cookie(response, refresh_token)
+    return response, 200
 
 
 @auth_bp.post("/logout")
 @jwt_required()
 def logout():
-    """Invalidate the current JWT by adding its JTI to the blocklist.
+    """End the current browser session.
 
     Requires: Authorization header with Bearer token.
 
     Returns:
         200 on success.
     """
-    from app import get_jwt_blocklist
+    now = datetime.utcnow()
+    _prune_expired_auth_rows(now)
+    _revoke_access_token(get_jwt(), now)
+    _revoke_current_refresh_session(now)
+    db.session.commit()
 
-    jti = get_jwt()["jti"]
-    get_jwt_blocklist().add(jti)
-    return jsonify({"message": "logged out successfully"}), 200
+    response = jsonify({"message": "logged out successfully"})
+    _clear_refresh_cookie(response)
+    return response, 200
 
 
 @auth_bp.get("/me")
@@ -265,15 +491,7 @@ def me():
     if not user:
         return jsonify({"error": "user not found"}), 404
 
-    return jsonify({
-        "id": user.id,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
-        "email": user.email,
-        "is_verified": user.is_verified,
-        "is_admin": user.is_admin,
-        "created_at": user.created_at.isoformat(),
-    }), 200
+    return jsonify(_user_payload(user)), 200
 
 
 @auth_bp.post("/forgot-password")
@@ -354,15 +572,23 @@ def reset_forgotten_password():
     user = User.query.filter_by(email=email).first()
     if not user:
         return jsonify({"error": "user not found"}), 404
-    if not user.password_reset_code or user.password_reset_code != code:
+    if not user.password_reset_code or not user.password_reset_code_expires_at:
         return jsonify({"error": "invalid reset code"}), 400
     if user.password_reset_code_expires_at < datetime.utcnow():
+        user.clear_password_reset_code()
+        db.session.commit()
         return jsonify({"error": "reset code has expired — request a new one"}), 400
+    if user.password_reset_code != code:
+        code_invalidated = user.record_failed_password_reset_code_attempt()
+        db.session.commit()
+        if code_invalidated:
+            return jsonify({"error": "too many failed attempts; request a new reset code"}), 400
+        return jsonify({"error": "invalid reset code"}), 400
 
     user.set_password(new_password)
-    user.password_reset_code = None
-    user.password_reset_code_expires_at = None
-    user.password_reset_code_sent_at = None
+    user.token_version += 1
+    user.clear_password_reset_code()
+    _revoke_all_refresh_sessions(user.id)
     db.session.commit()
     return jsonify({"message": "password reset successfully"}), 200
 
@@ -485,7 +711,6 @@ def delete_account():
     Returns:
         200 on success, 400 on invalid/cap-exceeding transfer target, 404 if user not found.
     """
-    from app import get_jwt_blocklist
     from models.league import League
     from models.league_member import LeagueMember
 
@@ -588,14 +813,13 @@ def delete_account():
 
     # Delete the user. ORM cascades on User.league_memberships and
     # User.predictions handle the remaining child rows.
+    _revoke_access_token(get_jwt())
     db.session.delete(user)
     db.session.commit()
 
-    # Blocklist the current token so it cannot be reused.
-    jti = get_jwt()["jti"]
-    get_jwt_blocklist().add(jti)
-
-    return jsonify({"message": "account deleted"}), 200
+    response = jsonify({"message": "account deleted"})
+    _clear_refresh_cookie(response)
+    return response, 200
 
 
 @auth_bp.post("/reset-password")
@@ -627,6 +851,10 @@ def reset_password():
         return jsonify({"error": "Current password is incorrect"}), 401
 
     user.set_password(new_password)
+    user.token_version += 1
+    _revoke_all_refresh_sessions(user.id)
     db.session.commit()
-    return jsonify({"message": "Password updated successfully"}), 200
 
+    response = jsonify({"message": "Password updated successfully. Please log in again."})
+    _clear_refresh_cookie(response)
+    return response, 200

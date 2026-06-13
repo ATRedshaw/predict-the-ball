@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from './api'
+import { useAuth } from './authState'
 import { usePageLoading } from './components/PageLoadingContext'
 
 function App() {
@@ -10,7 +11,8 @@ function App() {
   const [updatedAt, setUpdatedAt] = useState(null)
   const [stats,     setStats]     = useState(null)
 
-  const isLoggedIn = !!localStorage.getItem('access_token')
+  const { accessToken } = useAuth()
+  const isLoggedIn = !!accessToken
 
   useLayoutEffect(() => {
     setPageLoading(true)

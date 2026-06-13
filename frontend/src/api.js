@@ -1,6 +1,13 @@
 import { loadingBus } from './loadingBus'
+import {
+  clearAuthState,
+  getAccessToken,
+  setAccessToken,
+  setAuthenticated,
+} from './authState'
 
-const DEFAULT_BASE_URL = 'http://127.0.0.1:5000'
+const DEFAULT_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5000`
+let refreshPromise = null
 
 function resolveBaseUrl() {
   const value = import.meta.env.VITE_API_URL?.trim() || DEFAULT_BASE_URL
@@ -38,38 +45,55 @@ async function readJson(res) {
   }
 }
 
-/**
- * Thin fetch wrapper that prepends the base API URL and handles JSON
- * serialisation/deserialisation. Throws an Error with the server's
- * error message on non-2xx responses.
- *
- * @param {string} path              - Path relative to the API root, e.g. '/api/auth/login'.
- * @param {RequestInit} [options]    - Standard fetch options.
- * @param {boolean} [skipAutoLogout] - When true, a 401 is thrown as a regular error
- *                                     instead of redirecting to /login. Useful for
- *                                     endpoints where 401 means "wrong credentials"
- *                                     rather than "session expired".
- * @returns {Promise<any>}  Parsed JSON response body.
- */
-async function request(path, options = {}, skipAutoLogout = false) {
-  const token = localStorage.getItem('access_token')
+async function refreshAuth() {
+  if (!refreshPromise) {
+    refreshPromise = request('/api/auth/refresh', { method: 'POST' }, true, false)
+      .then(data => {
+        setAuthenticated(data.access_token, data.user ?? null)
+        return data
+      })
+      .finally(() => {
+        refreshPromise = null
+      })
+  }
+
+  return refreshPromise
+}
+
+async function request(path, options = {}, skipAutoLogout = false, allowRefresh = true) {
+  const token = getAccessToken()
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  }
 
   loadingBus.start()
   try {
     const res = await fetch(`${BASE_URL}${path}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...options.headers,
-      },
       ...options,
+      credentials: 'include',
+      headers,
     })
 
     const { data, responseError } = await readJson(res)
 
+    if (res.status === 401 && allowRefresh && token && !data.error) {
+      try {
+        const refreshed = await refreshAuth()
+        setAccessToken(refreshed.access_token)
+        return request(path, options, skipAutoLogout, false)
+      } catch {
+        clearAuthState()
+        if (!skipAutoLogout) {
+          window.location.href = '/login'
+        }
+        throw new Error('Session expired. Please log in again.')
+      }
+    }
+
     if (res.status === 401 && !skipAutoLogout) {
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('first_name')
+      clearAuthState()
       window.location.href = '/login'
       throw new Error('Session expired. Please log in again.')
     }
@@ -95,4 +119,5 @@ export const api = {
   put:    (path, body, skipAutoLogout) => request(path, { method: 'PUT',    body: JSON.stringify(body) }, skipAutoLogout),
   get:    (path)                       => request(path, { method: 'GET' }),
   delete: (path, body) => request(path, { method: 'DELETE', ...(body ? { body: JSON.stringify(body) } : {}) }),
+  refreshAuth,
 }

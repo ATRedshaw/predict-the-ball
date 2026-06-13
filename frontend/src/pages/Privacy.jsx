@@ -71,9 +71,8 @@ export default function Privacy() {
 
       <Section title="Cookies">
         <p>
-          No tracking or advertising cookies are used. The only browser storage in use
-          is <code className="text-teal/80 text-xs">localStorage</code> to hold the
-          authentication token during a session.
+          No tracking or advertising cookies are used. A secure, HttpOnly cookie is
+          used only to keep the account signed in between visits.
         </p>
       </Section>
 

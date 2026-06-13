@@ -1,13 +1,15 @@
+import hashlib
 import sqlite3
+from pathlib import Path
 
 from flask import Flask
 from flask_cors import CORS
-from pathlib import Path
-from sqlalchemy import event, text
+from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
+from admin_cli import create_admin_command
 from config import Config
-from extensions import db, jwt, mail, bcrypt, limiter
+from extensions import bcrypt, db, jwt, limiter, mail, migrate
 from routes import admin_bp, auth_bp, leagues_bp, predictions_bp, standings_bp, users_bp
 
 
@@ -19,8 +21,11 @@ def _set_sqlite_fk_pragma(dbapi_connection, _connection_record) -> None:
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
-# In-memory JWT blocklist. Replace with a persistent store (Redis, DB) in production.
-_jwt_blocklist: set[str] = set()
+
+def _prepare_sqlite_database_directory(db_url: str) -> None:
+    if db_url.startswith("sqlite:///"):
+        db_path = Path(db_url[len("sqlite:///"):])
+        db_path.parent.mkdir(parents=True, exist_ok=True)
 
 
 def create_app(config_class: type = Config) -> Flask:
@@ -38,10 +43,12 @@ def create_app(config_class: type = Config) -> Flask:
 
     # Initialise extensions
     db.init_app(app)
+    migrate.init_app(app, db, compare_type=True, render_as_batch=True)
     jwt.init_app(app)
     mail.init_app(app)
     bcrypt.init_app(app)
     limiter.init_app(app)
+    app.cli.add_command(create_admin_command)
 
     CORS(
         app,
@@ -50,19 +57,34 @@ def create_app(config_class: type = Config) -> Flask:
     )
 
     @jwt.token_in_blocklist_loader
-    def check_if_token_revoked(jwt_header, jwt_payload) -> bool:
-        return jwt_payload["jti"] in _jwt_blocklist
+    def check_if_token_revoked(_jwt_header, jwt_payload) -> bool:
+        if jwt_payload.get("type") != "access":
+            return False
 
-    with app.app_context():
-        import models  # noqa: F401
+        from models.revoked_token import RevokedToken
+        from models.user import User
 
-        # Ensure the directory for the SQLite file exists before create_all.
-        db_url = app.config.get("SQLALCHEMY_DATABASE_URI", "")
-        if db_url.startswith("sqlite:///"):
-            db_path = Path(db_url[len("sqlite:///"):])
-            db_path.parent.mkdir(parents=True, exist_ok=True)
+        jti = jwt_payload.get("jti")
+        if not jti:
+            return True
 
-        db.create_all()
+        jti_hash = hashlib.sha256(jti.encode("utf-8")).hexdigest()
+        if RevokedToken.query.filter_by(jti_hash=jti_hash).first():
+            return True
+
+        try:
+            user_id = int(jwt_payload.get("sub"))
+        except (TypeError, ValueError):
+            return True
+
+        user = db.session.get(User, user_id)
+        if not user:
+            return True
+
+        return jwt_payload.get("token_version") != user.token_version
+
+    _prepare_sqlite_database_directory(app.config.get("SQLALCHEMY_DATABASE_URI", ""))
+    import models  # noqa: F401
 
     # Register blueprints
     app.register_blueprint(admin_bp)
@@ -73,15 +95,6 @@ def create_app(config_class: type = Config) -> Flask:
     app.register_blueprint(users_bp)
 
     return app
-
-
-def get_jwt_blocklist() -> set[str]:
-    """Return the application-level JWT blocklist set.
-
-    Returns:
-        The set of revoked JWT IDs.
-    """
-    return _jwt_blocklist
 
 
 if __name__ == "__main__":

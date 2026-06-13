@@ -1,9 +1,12 @@
+import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Navbar from './Navbar'
 import Footer from './Footer'
 import { PageLoadingProvider } from './PageLoadingContext'
 import { InstallPromptProvider } from './InstallPromptProvider'
 import InstallBanner from './InstallBanner'
+import { api } from '../api'
+import { clearAuthState, useAuth } from '../authState'
 
 const PATH_TO_PAGE = {
   '/':                   'landing',
@@ -20,10 +23,17 @@ const PATH_TO_PAGE = {
 
 export default function Layout() {
   const { pathname } = useLocation()
-  const isLoggedIn   = !!localStorage.getItem('access_token')
-  const isAdmin      = localStorage.getItem('is_admin') === 'true'
+  const { accessToken, user } = useAuth()
+  const isLoggedIn   = !!accessToken
+  const isAdmin      = user?.is_admin === true
   const activePage   = PATH_TO_PAGE[pathname] ?? ''
-  const firstName    = localStorage.getItem('first_name') ?? ''
+  const firstName    = user?.first_name ?? ''
+
+  useEffect(() => {
+    api.refreshAuth().catch(() => {
+      clearAuthState()
+    })
+  }, [])
 
   return (
     <InstallPromptProvider>

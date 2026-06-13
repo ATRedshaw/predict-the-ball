@@ -1,10 +1,11 @@
 import { Navigate, Outlet } from 'react-router-dom'
+import { useAuth } from '../authState'
 
-/**
- * Wraps routes that should only be accessible to unauthenticated users.
- * Redirects to /dashboard if a token is present.
- */
 export default function GuestRoute() {
-  const isLoggedIn = !!localStorage.getItem('access_token')
+  const { accessToken, ready } = useAuth()
+  const isLoggedIn = !!accessToken
+
+  if (!ready) return null
+
   return isLoggedIn ? <Navigate to="/dashboard" replace /> : <Outlet />
 }
