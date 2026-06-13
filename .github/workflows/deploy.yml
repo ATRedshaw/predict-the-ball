@@ -28,7 +28,6 @@ jobs:
 
             cd /home/ubuntu/predict-the-ball
             docker compose build predict-the-ball
-            docker compose stop predict-the-ball || true
             docker compose run --rm predict-the-ball flask --app app:create_app db upgrade
             docker compose up -d predict-the-ball
 
