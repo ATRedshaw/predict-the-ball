@@ -78,7 +78,7 @@ async function request(path, options = {}, skipAutoLogout = false, allowRefresh 
 
     const { data, responseError } = await readJson(res)
 
-    if (res.status === 401 && allowRefresh && token && !data.error) {
+    if (res.status === 401 && allowRefresh && token) {
       try {
         const refreshed = await refreshAuth()
         setAccessToken(refreshed.access_token)

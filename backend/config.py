@@ -44,6 +44,19 @@ def _bool_env(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _refresh_cookie_samesite(secure: bool) -> str:
+    value = os.environ.get("REFRESH_COOKIE_SAMESITE")
+    normalized = value.strip().lower() if value else ("none" if secure else "lax")
+    allowed = {"lax": "Lax", "strict": "Strict", "none": "None"}
+
+    if normalized not in allowed:
+        raise ValueError("REFRESH_COOKIE_SAMESITE must be Lax, Strict or None")
+    if normalized == "none" and not secure:
+        raise ValueError("REFRESH_COOKIE_SAMESITE=None requires REFRESH_COOKIE_SECURE=true")
+
+    return allowed[normalized]
+
+
 class Config:
     SECRET_KEY = os.environ["SECRET_KEY"]
     SQLALCHEMY_DATABASE_URI = _resolve_db_url(os.environ["DATABASE_URL"])
@@ -60,11 +73,11 @@ class Config:
 
     REFRESH_COOKIE_NAME = os.environ.get("REFRESH_COOKIE_NAME", "ptb_refresh_token")
     REFRESH_COOKIE_PATH = "/api/auth"
-    REFRESH_COOKIE_SAMESITE = os.environ.get("REFRESH_COOKIE_SAMESITE", "Lax")
     REFRESH_COOKIE_SECURE = _bool_env(
         "REFRESH_COOKIE_SECURE",
         any(origin.startswith("https://") for origin in CORS_ORIGINS),
     )
+    REFRESH_COOKIE_SAMESITE = _refresh_cookie_samesite(REFRESH_COOKIE_SECURE)
 
     MAIL_SERVER = os.environ["MAIL_SERVER"]
     MAIL_PORT = int(os.environ["MAIL_PORT"])
