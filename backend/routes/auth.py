@@ -234,11 +234,6 @@ def login():
             _send_verification_email(user, code)
         return jsonify({"error": "email_not_verified", "code_valid": code_valid}), 403
 
-    from app import prune_expired_revoked_tokens
-
-    if prune_expired_revoked_tokens():
-        db.session.commit()
-
     access_token = _create_access_token(user)
     return jsonify({"access_token": access_token}), 200
 

@@ -114,14 +114,6 @@ def revoke_jwt(jwt_payload: dict) -> None:
         ))
 
 
-def prune_expired_revoked_tokens() -> int:
-    from models.revoked_token import RevokedToken
-
-    return RevokedToken.query.filter(
-        RevokedToken.expires_at <= datetime.utcnow(),
-    ).delete(synchronize_session=False)
-
-
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True)
