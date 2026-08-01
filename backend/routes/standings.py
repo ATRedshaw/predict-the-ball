@@ -20,7 +20,7 @@ standings_bp = Blueprint("standings", __name__, url_prefix="/api/standings")
 
 @standings_bp.get("/current-season")
 def current_season():
-    """Return the latest EPL season derived from saved CSV files."""
+    """Return the current season reported by the FPL API."""
     try:
         season = get_latest_epl_season()
     except FileNotFoundError as exc:
