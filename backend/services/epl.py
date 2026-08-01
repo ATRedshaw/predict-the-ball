@@ -10,7 +10,6 @@ import json
 import re
 from collections import defaultdict
 from datetime import datetime
-from functools import lru_cache
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -49,14 +48,8 @@ def _fetch_json(url: str, timeout: int = 30):
         raise RuntimeError(f"Could not fetch {url}: {exc.reason}") from exc
 
 
-@lru_cache(maxsize=1)
 def _fetch_fpl_bootstrap() -> dict:
-    """Fetch FPL bootstrap data.
-
-    Bootstrap data contains stable current-season metadata and team names, so
-    this is cached for the process lifetime. Fixture scores are intentionally
-    fetched fresh.
-    """
+    """Fetch current FPL bootstrap data."""
     data = _fetch_json(_FPL_BOOTSTRAP_URL)
     if not isinstance(data, dict):
         raise ValueError("FPL bootstrap response must be a JSON object")
