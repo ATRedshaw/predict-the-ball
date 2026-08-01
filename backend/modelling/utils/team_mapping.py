@@ -53,6 +53,37 @@ def load_mapping(path: Path) -> dict[str, str]:
     }
 
 
+def infer_simple_mappings(
+    fpl_names: list[str],
+    historical_names: list[str],
+) -> dict[str, str]:
+    """Match exact names and unambiguous City/Town suffix differences."""
+    historical_lookup = {
+        name.casefold(): name
+        for name in historical_names
+        if name.strip()
+    }
+    inferred: dict[str, str] = {}
+
+    for fpl_name in fpl_names:
+        exact = historical_lookup.get(fpl_name.casefold())
+        if exact is not None:
+            inferred[fpl_name] = exact
+            continue
+
+        lowered = fpl_name.casefold()
+        for suffix in (" city", " town"):
+            if not lowered.endswith(suffix):
+                continue
+            shortened = fpl_name[:-len(suffix)].strip()
+            match = historical_lookup.get(shortened.casefold())
+            if match is not None:
+                inferred[fpl_name] = match
+            break
+
+    return inferred
+
+
 def save_mapping(mapping: dict[str, str], path: Path) -> None:
     """Persist the mapping in deterministic key order."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -327,7 +358,15 @@ def ensure_team_name_mapping(
         if name not in mapping or not mapping[name]
     ]
 
+    inferred = infer_simple_mappings(missing, historical_team_names)
+    if inferred:
+        mapping.update(inferred)
+        missing = [name for name in missing if name not in inferred]
+
     if not missing:
+        if inferred:
+            save_mapping(mapping, mapping_path)
+            log.info("Updated team-name mapping at %s", mapping_path)
         log.info("Team-name mapping cache covers all %d FPL teams", len(fpl_team_names))
         return mapping
 
