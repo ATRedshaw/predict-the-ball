@@ -11,6 +11,8 @@ import re
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+from time import monotonic
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
@@ -27,7 +29,10 @@ _TEAM_MAPPING_PATH = _MODELLING_DIR / "data" / "mapping" / "team_name_mapping.js
 
 _FPL_BOOTSTRAP_URL = "https://fantasy.premierleague.com/api/bootstrap-static/"
 _FPL_FIXTURES_URL = "https://fantasy.premierleague.com/api/fixtures/"
+_FPL_CACHE_TTL_SECONDS = 300
 _USER_AGENT = "predict-the-ball/1.0"
+
+_fpl_document_cache: dict[str, tuple[float, Any]] = {}
 
 # Handles standard scores ("1-2"), penalty shootouts ("(4) 1-1 (3)"), and en dashes.
 _SCORE_RE = re.compile(r"(?:\(\d+\)\s*)?(\d+)\s*[–\-]\s*(\d+)(?:\s*\(\d+\))?")
@@ -48,19 +53,35 @@ def _fetch_json(url: str, timeout: int = 30):
         raise RuntimeError(f"Could not fetch {url}: {exc.reason}") from exc
 
 
+def _fetch_fpl_document(url: str, expected_type: type, error: str) -> Any:
+    now = monotonic()
+    cached = _fpl_document_cache.get(url)
+    if cached is not None and now - cached[0] < _FPL_CACHE_TTL_SECONDS:
+        return cached[1]
+
+    data = _fetch_json(url)
+    if not isinstance(data, expected_type):
+        raise ValueError(error)
+    _fpl_document_cache[url] = (now, data)
+    return data
+
+
 def _fetch_fpl_bootstrap() -> dict:
     """Fetch current FPL bootstrap data."""
-    data = _fetch_json(_FPL_BOOTSTRAP_URL)
-    if not isinstance(data, dict):
-        raise ValueError("FPL bootstrap response must be a JSON object")
-    return data
+    return _fetch_fpl_document(
+        _FPL_BOOTSTRAP_URL,
+        dict,
+        "FPL bootstrap response must be a JSON object",
+    )
 
 
 def _fetch_fpl_fixtures() -> list[dict]:
     """Fetch current-season FPL fixtures."""
-    data = _fetch_json(_FPL_FIXTURES_URL)
-    if not isinstance(data, list):
-        raise ValueError("FPL fixtures response must be a JSON list")
+    data = _fetch_fpl_document(
+        _FPL_FIXTURES_URL,
+        list,
+        "FPL fixtures response must be a JSON list",
+    )
     return [row for row in data if isinstance(row, dict)]
 
 
@@ -98,7 +119,8 @@ def _is_gameweek_1(event: dict) -> bool:
 
 def _gameweek_1_deadline(bootstrap: dict | None = None) -> datetime:
     """Extract gameweek 1 deadline from FPL bootstrap data."""
-    bootstrap = bootstrap or _fetch_fpl_bootstrap()
+    if bootstrap is None:
+        bootstrap = _fetch_fpl_bootstrap()
     events = bootstrap.get("events", [])
     if not isinstance(events, list):
         raise ValueError("FPL bootstrap events must be a list")
@@ -145,7 +167,8 @@ def _map_fpl_team_name(name: str, mapping: dict[str, str]) -> str:
 
 def _fpl_team_by_id(bootstrap: dict | None = None) -> dict[int, str]:
     """Build team-id to FPL team-name lookup."""
-    bootstrap = bootstrap or _fetch_fpl_bootstrap()
+    if bootstrap is None:
+        bootstrap = _fetch_fpl_bootstrap()
     teams = bootstrap.get("teams", [])
     if not isinstance(teams, list):
         raise ValueError("FPL bootstrap teams must be a list")
@@ -169,7 +192,8 @@ def _fpl_team_by_id(bootstrap: dict | None = None) -> dict[int, str]:
 
 def _mapped_current_fpl_teams(bootstrap: dict | None = None) -> list[str]:
     """Return current EPL teams using modelling names."""
-    bootstrap = bootstrap or _fetch_fpl_bootstrap()
+    if bootstrap is None:
+        bootstrap = _fetch_fpl_bootstrap()
     mapping = _load_team_name_mapping()
     teams = {
         _map_fpl_team_name(name, mapping)
@@ -190,12 +214,15 @@ def _is_completed_fixture(fixture: dict) -> bool:
         return False
 
 
-def _current_fpl_fixture_data() -> tuple[list[str], list[dict], list[dict]]:
+def _current_fpl_fixture_data(
+    bootstrap: dict | None = None,
+) -> tuple[list[str], list[dict], list[dict]]:
     """Return current EPL teams, completed results, and remaining fixtures.
 
     Team names are mapped from FPL names to modelling historical names.
     """
-    bootstrap = _fetch_fpl_bootstrap()
+    if bootstrap is None:
+        bootstrap = _fetch_fpl_bootstrap()
     fixtures = _fetch_fpl_fixtures()
     mapping = _load_team_name_mapping()
     team_by_id = _fpl_team_by_id(bootstrap)
@@ -300,33 +327,42 @@ def _parse_score(raw: str) -> tuple[int, int] | None:
     return int(match.group(1)), int(match.group(2))
 
 
-def get_latest_epl_season() -> str:
+def get_latest_epl_season(bootstrap: dict | None = None) -> str:
     """Return the current FPL season string, e.g. ``2025-26``."""
-    return _display_season(_current_fpl_start_year())
+    if bootstrap is None:
+        bootstrap = _fetch_fpl_bootstrap()
+    return _display_season(_current_fpl_start_year(bootstrap))
 
 
-def has_season_kicked_off(season: str) -> bool:
+def has_season_kicked_off(season: str, bootstrap: dict | None = None) -> bool:
     """Check whether the first fixture of the given EPL season has kicked off."""
+    if bootstrap is None:
+        bootstrap = _fetch_fpl_bootstrap()
     start_year = _start_year_from_display(season)
-    current_start_year = _current_fpl_start_year()
+    current_start_year = _current_fpl_start_year(bootstrap)
 
     if start_year < current_start_year:
         return True
     if start_year > current_start_year:
         return False
 
-    first_kickoff = get_first_kickoff(season)
+    first_kickoff = get_first_kickoff(season, bootstrap)
     return first_kickoff is not None and datetime.now(_UK_TZ) >= first_kickoff
 
 
-def get_first_kickoff(season: str) -> datetime | None:
+def get_first_kickoff(
+    season: str,
+    bootstrap: dict | None = None,
+) -> datetime | None:
     """Return the prediction deadline for current season, else first raw date.
 
     The function name is legacy. For the active FPL season, the authoritative
     deadline is FPL gameweek 1's deadline from bootstrap-static.
     """
-    if _is_current_fpl_season(season):
-        return _gameweek_1_deadline()
+    if bootstrap is None:
+        bootstrap = _fetch_fpl_bootstrap()
+    if _is_current_fpl_season(season, bootstrap):
+        return _gameweek_1_deadline(bootstrap)
 
     df = _historical_epl_raw(season)
     if df.empty or "date" not in df.columns:
@@ -337,10 +373,12 @@ def get_first_kickoff(season: str) -> datetime | None:
     return dates.min().to_pydatetime().replace(tzinfo=_UK_TZ)
 
 
-def get_season_teams(season: str) -> list[str]:
+def get_season_teams(season: str, bootstrap: dict | None = None) -> list[str]:
     """Return all EPL team names for a season using modelling names."""
-    if _is_current_fpl_season(season):
-        return _mapped_current_fpl_teams()
+    if bootstrap is None:
+        bootstrap = _fetch_fpl_bootstrap()
+    if _is_current_fpl_season(season, bootstrap):
+        return _mapped_current_fpl_teams(bootstrap)
 
     df = _historical_epl_raw(season)
     if df.empty:
@@ -455,14 +493,17 @@ def calculate_epl_table(
     season: str,
     kicked_off: bool,
     deductions: list[dict] | None = None,
+    bootstrap: dict | None = None,
 ) -> list[dict]:
     """Calculate the EPL table for the current FPL season or a historical CSV."""
-    if _is_current_fpl_season(season):
-        teams, completed_rows, _ = _current_fpl_fixture_data()
+    if bootstrap is None:
+        bootstrap = _fetch_fpl_bootstrap()
+    if _is_current_fpl_season(season, bootstrap):
+        teams, completed_rows, _ = _current_fpl_fixture_data(bootstrap)
         rows = completed_rows if kicked_off else []
         return _build_table(teams=teams, completed_rows=rows, deductions=deductions)
 
-    teams = get_season_teams(season)
+    teams = get_season_teams(season, bootstrap)
     if not teams:
         return []
     rows = _historical_epl_completed_rows(season) if kicked_off else []
@@ -560,10 +601,11 @@ def simulate_elo_projection(
     history["season"] = history["season"].astype(str)
     history = history[history["season"] != season_label].copy()
 
-    if _is_current_fpl_season(season):
-        teams, completed_rows, remaining_fixtures = _current_fpl_fixture_data()
+    bootstrap = _fetch_fpl_bootstrap()
+    if _is_current_fpl_season(season, bootstrap):
+        teams, completed_rows, remaining_fixtures = _current_fpl_fixture_data(bootstrap)
     else:
-        teams = get_season_teams(season)
+        teams = get_season_teams(season, bootstrap)
         completed_rows = _historical_epl_completed_rows(season)
         remaining_fixtures = []
 
@@ -584,7 +626,11 @@ def simulate_elo_projection(
         initial_rating=initial_rating,
     )
 
-    current_table = calculate_epl_table(season, bool(completed_rows), deductions)
+    current_table = _build_table(
+        teams=teams,
+        completed_rows=completed_rows,
+        deductions=deductions,
+    )
     if not current_table:
         return []
 
