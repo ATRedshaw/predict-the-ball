@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from extensions import db
+from extensions import db, limiter
 from models.league import League
 from models.league_member import LeagueMember
 from models.user import User
@@ -65,6 +65,10 @@ def _membership_count(user_id: int, season: str) -> int:
         )
         .count()
     )
+
+
+def _join_account_rate_limit_key() -> str:
+    return f"user:{get_jwt_identity()}"
 
 
 def _member_payload(member: LeagueMember, season: str, kicked_off: bool) -> dict:
@@ -216,6 +220,7 @@ def get_league(league_id: int):
 
 @leagues_bp.post("/join")
 @jwt_required()
+@limiter.limit("5 per minute", key_func=_join_account_rate_limit_key)
 def join_league():
     """Join a league using its invite code.
 
