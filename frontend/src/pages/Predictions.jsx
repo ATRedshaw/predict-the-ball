@@ -1,5 +1,5 @@
-import { useState, useEffect, useLayoutEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
+import { Link, useBeforeUnload, useBlocker } from 'react-router-dom'
 import {
   DndContext,
   closestCenter,
@@ -105,6 +105,100 @@ function ZoneDivider({ label, lineColour }) {
   )
 }
 
+function UnsavedChangesModal({ onStay, onLeave }) {
+  const modalRef = useRef(null)
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        onStay()
+        return
+      }
+
+      if (event.key !== 'Tab') return
+
+      const buttons = modalRef.current?.querySelectorAll('button') ?? []
+      const firstButton = buttons[0]
+      const lastButton = buttons[buttons.length - 1]
+
+      if (event.shiftKey && document.activeElement === firstButton) {
+        event.preventDefault()
+        lastButton?.focus()
+      } else if (!event.shiftKey && document.activeElement === lastButton) {
+        event.preventDefault()
+        firstButton?.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previouslyFocused?.focus()
+    }
+  }, [onStay])
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center sm:p-6">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="unsaved-changes-title"
+        aria-describedby="unsaved-changes-description"
+        className="w-full max-w-md rounded-2xl border border-white/10 bg-jet-dark p-5 shadow-2xl sm:p-6"
+      >
+        <div className="flex items-start gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-400/10 text-red-400">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-6 w-6"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 9v4" />
+              <path d="M12 17h.01" />
+              <path d="M10.3 3.7 2.2 18a2 2 0 0 0 1.8 3h16a2 2 0 0 0 1.8-3L13.7 3.7a2 2 0 0 0-3.4 0Z" />
+            </svg>
+          </div>
+
+          <div>
+            <h2 id="unsaved-changes-title" className="text-lg font-semibold text-white sm:text-xl">
+              Leave without saving?
+            </h2>
+            <p id="unsaved-changes-description" className="mt-2 text-sm leading-6 text-white/60">
+              Your prediction changes haven’t been saved. If you leave now, those changes will be lost.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={onStay}
+            autoFocus
+            className="min-h-11 flex-1 rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-muted focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-2 focus:ring-offset-jet-dark"
+          >
+            Stay on page
+          </button>
+          <button
+            type="button"
+            onClick={onLeave}
+            className="min-h-11 flex-1 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-400/20 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 focus:ring-offset-jet-dark"
+          >
+            Leave without saving
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
@@ -122,8 +216,8 @@ export default function Predictions() {
   const [season,    setSeason]      = useState(null)
   const [deadline,  setDeadline]    = useState(null)
   const [teams,     setTeams]       = useState([])   // ordered list of team name strings
+  const [baselineTeams, setBaselineTeams] = useState([])
   const [saved,     setSaved]       = useState(null) // saved prediction from server, or null
-  const [dirty,     setDirty]       = useState(false)
   const [saving,    setSaving]      = useState(false)
   const [saveError, setSaveError]   = useState('')
   const [saveOk,    setSaveOk]      = useState(false)
@@ -133,6 +227,18 @@ export default function Predictions() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor,   { activationConstraint: { delay: 150, tolerance: 5 } }),
   )
+
+  const dirty = pageState === 'pre-season' && (
+    teams.length !== baselineTeams.length ||
+    teams.some((team, index) => team !== baselineTeams[index])
+  )
+  const blocker = useBlocker(dirty)
+
+  useBeforeUnload(useCallback(event => {
+    if (!dirty) return
+    event.preventDefault()
+    event.returnValue = ''
+  }, [dirty]))
 
   useLayoutEffect(() => {
     setPageLoading(true)
@@ -171,7 +277,9 @@ export default function Predictions() {
         } else {
           setPageState('pre-season')
           // Pre-populate with saved prediction, otherwise use alphabetical order
-          setTeams(existingPrediction ?? teamsData.teams)
+          const loadedTeams = existingPrediction ?? teamsData.teams
+          setTeams(loadedTeams)
+          setBaselineTeams(loadedTeams)
         }
       } catch (err) {
         console.error(err)
@@ -192,7 +300,6 @@ export default function Predictions() {
       const newIndex = prev.indexOf(over.id)
       return arrayMove(prev, oldIndex, newIndex)
     })
-    setDirty(true)
     setSaveOk(false)
   }, [])
 
@@ -206,7 +313,8 @@ export default function Predictions() {
       const method  = saved ? 'put' : 'post'
       const result  = await api[method](`/api/predictions/${season}`, { standings: teams })
       setSaved(result.standings)
-      setDirty(false)
+      setTeams(result.standings)
+      setBaselineTeams(result.standings)
       setSaveOk(true)
     } catch (err) {
       setSaveError(err.message)
@@ -408,6 +516,13 @@ export default function Predictions() {
         <p className="text-white/20 text-xs mt-2 text-center">
           Δ = actual − predicted position. Negative means the team finished higher than predicted.
         </p>
+      )}
+
+      {blocker.state === 'blocked' && (
+        <UnsavedChangesModal
+          onStay={blocker.reset}
+          onLeave={blocker.proceed}
+        />
       )}
     </div>
   )
