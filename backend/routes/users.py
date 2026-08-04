@@ -103,8 +103,8 @@ def _season_summary(season: str, user_id: int, kicked_off: bool) -> dict:
     if prediction:
         prediction_payload = {
             "standings": prediction.standings if kicked_off else None,
-            "points": prediction.current_points,
-            "exact_predictions": prediction.exact_predictions,
+            "points": prediction.current_points if kicked_off else None,
+            "exact_predictions": prediction.exact_predictions if kicked_off else None,
             "submitted_at": prediction.submitted_at.isoformat(),
             "updated_at": prediction.updated_at.isoformat() if prediction.updated_at else None,
         }
@@ -119,7 +119,7 @@ def _season_summary(season: str, user_id: int, kicked_off: bool) -> dict:
     for m in memberships:
         league = m.league
         member_count = LeagueMember.query.filter_by(league_id=league.id).count()
-        rank_info = _league_rank(league.id, user_id, season)
+        rank_info = _league_rank(league.id, user_id, season) if kicked_off else None
         leagues_payload.append({
             "id": league.id,
             "name": league.name,
@@ -129,7 +129,7 @@ def _season_summary(season: str, user_id: int, kicked_off: bool) -> dict:
             "rank": rank_info,
         })
 
-    global_rank = _global_rank(season, user_id)
+    global_rank = _global_rank(season, user_id) if kicked_off else None
 
     return {
         "prediction": prediction_payload,
@@ -166,7 +166,7 @@ def get_dashboard():
     current_payload = _season_summary(current_season, user_id, kicked_off) if current_season else None
 
     # Average score across all scored predictions for the current season.
-    if current_season:
+    if current_season and kicked_off:
         scored = [
             p.current_points for p in
             UserPrediction.query
@@ -282,11 +282,11 @@ def get_user_profile(user_id: int):
 
     def _build_season(season: str, ko: bool) -> dict:
         prediction = UserPrediction.query.filter_by(user_id=user_id, season=season).first()
-        global_rank = _global_rank(season, user_id)
+        global_rank = _global_rank(season, user_id) if ko else None
         return {
             "season": season,
-            "score": prediction.current_points if prediction else None,
-            "exact_predictions": prediction.exact_predictions if prediction else None,
+            "score": prediction.current_points if (prediction and ko) else None,
+            "exact_predictions": prediction.exact_predictions if (prediction and ko) else None,
             "global_rank": global_rank,
             "has_prediction": prediction is not None,
             "prediction_standings": prediction.standings if (prediction and ko) else None,
@@ -311,6 +311,5 @@ def get_user_profile(user_id: int):
         "current_season": current,
         "history": history,
     }), 200
-
 
 

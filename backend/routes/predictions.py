@@ -2,9 +2,8 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from extensions import db
-from models.actual_standing import ActualStanding
 from models.user_prediction import UserPrediction
-from services.epl import has_season_kicked_off, get_season_teams, compute_prediction_score
+from services.epl import has_season_kicked_off, get_season_teams
 
 predictions_bp = Blueprint("predictions", __name__, url_prefix="/api/predictions")
 
@@ -118,18 +117,8 @@ def update_prediction(season: str):
         return jsonify({"error": "No existing prediction found — use POST to create one"}), 404
 
     prediction.standings = standings
-
-    # Recompute score immediately so current_points never lags behind an edit.
-    actual_snapshot = (
-        ActualStanding.query
-        .filter_by(season=season)
-        .order_by(ActualStanding.updated_at.desc())
-        .first()
-    )
-    if actual_snapshot:
-        prediction.current_points = compute_prediction_score(
-            standings, actual_snapshot.standings
-        )
+    prediction.current_points = None
+    prediction.exact_predictions = None
 
     db.session.commit()
 

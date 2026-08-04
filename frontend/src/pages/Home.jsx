@@ -79,7 +79,7 @@ function PredictionCard({ prediction, season, kickedOff, actualLookup }) {
             {updated_at ? `Updated ${dateLabel}` : `Submitted ${dateLabel}`}
           </p>
         </div>
-        {points !== null && points !== undefined && (
+        {kickedOff && points !== null && points !== undefined && (
           <div className="text-right">
             <p className="text-teal text-xl font-bold leading-none">{points}</p>
             <p className="text-white/30 text-[10px] mt-0.5">pts</p>
@@ -459,7 +459,9 @@ export default function Home() {
     : null
 
   const hasPrediction     = !!current?.prediction
-  const globalRank        = current?.global_rank
+  const visiblePoints     = kicked_off ? current?.prediction?.points : null
+  const globalRank        = kicked_off ? current?.global_rank : null
+  const visibleAvgScore   = kicked_off ? avg_score : null
   const currentLeagues    = current?.leagues ?? []
 
   return (
@@ -501,15 +503,15 @@ export default function Home() {
         <StatCard
           label="Global rank"
           value={globalRank ? `#${globalRank.rank}` : '—'}
-          sub={globalRank ? `of ${globalRank.total} predictors` : current?.prediction?.points != null ? 'calculating…' : kicked_off ? 'no prediction' : 'season not started'}
+          sub={globalRank ? `of ${globalRank.total} predictors` : visiblePoints != null ? 'calculating…' : kicked_off ? 'no prediction' : 'season not started'}
         />
         <StatCard
           label="Your score"
-          value={current?.prediction?.points ?? '—'}
+          value={visiblePoints ?? '—'}
           sub={
-            current?.prediction?.points != null && avg_score != null
-              ? `worldwide seasonal average: ${avg_score}`
-              : current?.prediction?.points != null
+            visiblePoints != null && visibleAvgScore != null
+              ? `worldwide seasonal average: ${visibleAvgScore}`
+              : visiblePoints != null
               ? 'lower is better'
               : kicked_off ? 'no prediction' : 'pending kick-off'
           }
