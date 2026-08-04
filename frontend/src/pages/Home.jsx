@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
+import DeadlineCountdown from '../components/DeadlineCountdown'
 import { usePageLoading } from '../components/PageLoadingContext'
 
 // ---------------------------------------------------------------------------
@@ -452,8 +453,8 @@ export default function Home() {
 
   const deadlineLabel = deadline
     ? new Date(deadline).toLocaleString('en-GB', {
-        weekday: 'short', day: 'numeric', month: 'short',
-        hour: '2-digit', minute: '2-digit',
+        day: 'numeric', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
       })
     : null
 
@@ -472,9 +473,6 @@ export default function Home() {
           </h1>
           <p className="text-white/40 text-sm mt-0.5">
             {current_season ? `${current_season} season` : '—'}
-            {deadlineLabel && !kicked_off && (
-              <span className="ml-2 text-teal-muted">· deadline {deadlineLabel}</span>
-            )}
             {kicked_off && (
               <span className="ml-2 text-white/25">· season in progress</span>
             )}
@@ -489,6 +487,14 @@ export default function Home() {
           </Link>
         )}
       </div>
+
+      {!kicked_off && deadlineLabel && (
+        <DeadlineCountdown
+          key={deadline}
+          deadline={deadline}
+          deadlineLabel={deadlineLabel}
+        />
+      )}
 
       {/* ── Stats row ── */}
       <div className="flex gap-3 flex-wrap">
@@ -603,4 +609,3 @@ export default function Home() {
     </div>
   )
 }
-
