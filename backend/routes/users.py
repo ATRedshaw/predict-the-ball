@@ -1,7 +1,9 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import func
 
 from extensions import db
+from models.elo_projection import EloProjection
 from models.league import League
 from models.league_member import LeagueMember
 from models.user import User
@@ -217,18 +219,25 @@ def get_stats():
     No authentication required. Stats are computed on the fly from live data.
 
     Returns:
-        200 with ``total_predicted_positions``, ``total_leagues``,
-        ``total_users``, and ``total_predictions`` keys.
+        200 with public prediction, league, user, and simulation totals.
     """
     total_predictions = UserPrediction.query.count()
     total_leagues     = League.query.count()
     total_users       = User.query.count()
+    total_match_outcomes_simulated = db.session.scalar(
+        db.select(func.coalesce(func.sum(EloProjection.match_outcomes_simulated), 0))
+    )
+    total_alternative_seasons_simulated = db.session.scalar(
+        db.select(func.coalesce(func.sum(EloProjection.simulation_count), 0))
+    )
 
     return jsonify({
         "total_predicted_positions": total_predictions * 20,
         "total_predictions":         total_predictions,
         "total_leagues":             total_leagues,
         "total_users":               total_users,
+        "total_match_outcomes_simulated": int(total_match_outcomes_simulated),
+        "total_alternative_seasons_simulated": int(total_alternative_seasons_simulated),
     }), 200
 
 
@@ -311,5 +320,3 @@ def get_user_profile(user_id: int):
         "current_season": current,
         "history": history,
     }), 200
-
-

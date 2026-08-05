@@ -206,13 +206,16 @@ def _serialize_projection(snapshot: EloProjection) -> dict:
         snapshot: ORM instance to serialise.
 
     Returns:
-        Dict with ``id``, ``season``, ``updated_at``, and ``projections``.
+        Dict containing the projection output and simulation metadata.
     """
     return {
         "id": snapshot.id,
         "season": snapshot.season,
         "updated_at": snapshot.updated_at.isoformat() + "Z",
         "projections": snapshot.projections,
+        "simulation_count": snapshot.simulation_count,
+        "fixtures_simulated": snapshot.fixtures_simulated,
+        "match_outcomes_simulated": snapshot.match_outcomes_simulated,
     }
 
 
@@ -433,6 +436,9 @@ def compare_elo_vs_actual(season: str):
         "projection": {
             "updated_at": proj_snap.updated_at.isoformat() + "Z",
             "projections": proj_snap.projections,
+            "simulation_count": proj_snap.simulation_count,
+            "fixtures_simulated": proj_snap.fixtures_simulated,
+            "match_outcomes_simulated": proj_snap.match_outcomes_simulated,
         },
         "comparison": comparison,
     })

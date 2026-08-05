@@ -31,6 +31,7 @@ _FPL_BOOTSTRAP_URL = "https://fantasy.premierleague.com/api/bootstrap-static/"
 _FPL_FIXTURES_URL = "https://fantasy.premierleague.com/api/fixtures/"
 _FPL_CACHE_TTL_SECONDS = 300
 _USER_AGENT = "predict-the-ball/1.0"
+ELO_SIMULATION_COUNT = 10_000
 
 _fpl_document_cache: dict[str, tuple[float, Any]] = {}
 
@@ -581,10 +582,10 @@ def _elo_three_way(e_home: float) -> tuple[float, float, float]:
 
 def simulate_elo_projection(
     season: str,
-    n_simulations: int = 10_000,
+    n_simulations: int = ELO_SIMULATION_COUNT,
     deductions: list[dict] | None = None,
-) -> list[dict]:
-    """Monte Carlo simulation of the remainder of the EPL season using ELO ratings."""
+) -> tuple[list[dict], int]:
+    """Simulate the EPL season and return projections plus the fixture count."""
     with open(_ELO_PARAMS) as fh:
         params = json.load(fh)
 
@@ -632,7 +633,7 @@ def simulate_elo_projection(
         deductions=deductions,
     )
     if not current_table:
-        return []
+        return [], 0
 
     teams = [row["team"] for row in current_table]
     n_teams = len(teams)
@@ -713,4 +714,4 @@ def simulate_elo_projection(
         )
 
     results.sort(key=sort_key)
-    return results
+    return results, len(fixture_probs)

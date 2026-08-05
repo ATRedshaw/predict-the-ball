@@ -21,6 +21,7 @@ from services.epl import (
     calculate_epl_table,
     compute_exact_predictions,
     compute_prediction_score,
+    ELO_SIMULATION_COUNT,
     get_latest_epl_season,
     has_season_kicked_off,
     simulate_elo_projection,
@@ -166,7 +167,11 @@ def save_elo_projection_snapshot(season: str, deductions: list[dict]) -> None:
 
     create_elo_params_if_missing()
     print(f"Running ELO simulation for {season}...")
-    projections = simulate_elo_projection(season, n_simulations=10_000, deductions=deductions)
+    projections, fixtures_simulated = simulate_elo_projection(
+        season,
+        n_simulations=ELO_SIMULATION_COUNT,
+        deductions=deductions,
+    )
 
     if not projections:
         print(f"ELO simulation returned no data for {season} — skipping.")
@@ -175,6 +180,9 @@ def save_elo_projection_snapshot(season: str, deductions: list[dict]) -> None:
     snapshot = EloProjection(
         season=season,
         projections=projections,
+        simulation_count=ELO_SIMULATION_COUNT,
+        fixtures_simulated=fixtures_simulated,
+        match_outcomes_simulated=fixtures_simulated * ELO_SIMULATION_COUNT,
         updated_at=datetime.now(timezone.utc),
     )
     db.session.add(snapshot)

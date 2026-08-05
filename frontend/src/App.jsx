@@ -48,7 +48,16 @@ function App() {
 
   function fmtNum(n) {
     if (n == null) return '—'
-    if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`
+    const units = [
+      { threshold: 1_000_000_000, suffix: 'b' },
+      { threshold: 1_000_000, suffix: 'm' },
+      { threshold: 1_000, suffix: 'k' },
+    ]
+    const unit = units.find(({ threshold }) => n >= threshold)
+    if (unit) {
+      const scaled = n / unit.threshold
+      return `${scaled.toFixed(scaled >= 10 ? 0 : 1)}${unit.suffix}`
+    }
     return n.toString()
   }
 
@@ -194,9 +203,9 @@ function App() {
         {/* Stats strip — full width */}
         <div className="col-span-12 bg-jet-dark rounded-2xl px-6 py-5 flex flex-col md:flex-row items-center justify-between gap-4">
           {[
-            { value: fmtNum(stats?.total_predicted_positions), label: 'Positions predicted' },
-            { value: fmtNum(stats?.total_leagues),             label: 'Leagues contested'     },
-            { value: fmtNum(stats?.total_users),               label: 'Players signed up'   },
+            { value: fmtNum(stats?.total_match_outcomes_simulated), label: 'Match outcomes simulated' },
+            { value: fmtNum(stats?.total_alternative_seasons_simulated), label: 'Alternative seasons simulated' },
+            { value: fmtNum(stats?.total_predicted_positions), label: 'User positions predicted' },
           ].map(({ value, label }) => (
             <div key={label} className="text-center flex-1">
               <p className="text-white text-2xl font-bold">{value}</p>
