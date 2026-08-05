@@ -110,7 +110,9 @@ function App() {
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
           </div>
           <p className="text-teal text-[10px] mb-4">
-            {refreshedLabel ? `Last refreshed ${refreshedLabel}` : 'Last refreshed —'}
+            {refreshedLabel
+              ? `Updated daily · Last changed: ${refreshedLabel}`
+              : 'Updated daily · Last changed: —'}
           </p>
 
           <div className="space-y-2 flex-1 overflow-y-auto scrollbar-none">

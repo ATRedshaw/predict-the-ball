@@ -189,7 +189,9 @@ function ActualStandingsCard({ standings, updatedAt, kickedOff, season }) {
       <div className="mb-4">
         <p className="text-white font-semibold text-sm">Live PL table</p>
         {updatedLabel && (
-          <p className="text-white/30 text-xs mt-0.5">Updated {updatedLabel}</p>
+          <p className="text-white/30 text-xs mt-0.5">
+            Updated daily · Last changed: {updatedLabel}
+          </p>
         )}
       </div>
       <div className="grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem] gap-x-3 px-2 pb-1.5">
