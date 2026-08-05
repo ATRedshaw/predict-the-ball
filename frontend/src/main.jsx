@@ -1,6 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import {
+  createBrowserRouter,
+  createRoutesFromElements,
+  Route,
+  RouterProvider,
+} from 'react-router-dom'
 import './index.css'
 import Layout         from './components/Layout.jsx'
 import GuestRoute     from './components/GuestRoute.jsx'
@@ -21,42 +26,44 @@ import Privacy       from './pages/Privacy.jsx'
 import Terms         from './pages/Terms.jsx'
 import NotFound       from './pages/NotFound.jsx'
 
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <Route element={<Layout />}>
+      {/* Public */}
+      <Route path="/" element={<App />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms"   element={<Terms />}   />
+
+      {/* Unauthenticated only */}
+      <Route element={<GuestRoute />}>
+        <Route path="/login"           element={<Login />}          />
+        <Route path="/signup"          element={<SignUp />}         />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+      </Route>
+
+      {/* Authenticated only */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/dashboard"          element={<Home />} />
+        <Route path="/predictions"        element={<Predictions />} />
+        <Route path="/standings"          element={<Standings />} />
+        <Route path="/leagues"            element={<Leagues />} />
+        <Route path="/model-predictions"  element={<ModelPredictions />} />
+        <Route path="/settings"           element={<Settings />} />
+      </Route>
+
+      {/* Admin only */}
+      <Route element={<AdminRoute />}>
+        <Route path="/admin" element={<Admin />} />
+      </Route>
+
+      {/* Catch-all */}
+      <Route path="*" element={<NotFound />} />
+    </Route>,
+  ),
+)
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          {/* Public */}
-          <Route path="/" element={<App />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms"   element={<Terms />}   />
-
-          {/* Unauthenticated only */}
-          <Route element={<GuestRoute />}>
-            <Route path="/login"           element={<Login />}          />
-            <Route path="/signup"          element={<SignUp />}         />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-          </Route>
-
-          {/* Authenticated only */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard"          element={<Home />} />
-            <Route path="/predictions"        element={<Predictions />} />
-            <Route path="/standings"          element={<Standings />} />
-            <Route path="/leagues"            element={<Leagues />} />
-            <Route path="/model-predictions"  element={<ModelPredictions />} />
-            <Route path="/settings"           element={<Settings />} />
-          </Route>
-
-          {/* Admin only */}
-          <Route element={<AdminRoute />}>
-            <Route path="/admin" element={<Admin />} />
-          </Route>
-
-          {/* Catch-all */}
-          <Route path="*" element={<NotFound />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <RouterProvider router={router} />
   </StrictMode>,
 )

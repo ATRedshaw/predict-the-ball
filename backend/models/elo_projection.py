@@ -32,6 +32,14 @@ class EloProjection(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     season = db.Column(db.String(9), nullable=False, index=True)  # e.g. "2026-27"
     projections = db.Column(db.JSON, nullable=False)
+    simulation_count = db.Column(db.Integer, nullable=False, default=0, server_default="0")
+    fixtures_simulated = db.Column(db.Integer, nullable=False, default=0, server_default="0")
+    match_outcomes_simulated = db.Column(
+        db.BigInteger,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
     updated_at = db.Column(
         db.DateTime,
         default=lambda: datetime.now(timezone.utc),

@@ -6,6 +6,7 @@ from flask import Flask
 from flask_cors import CORS
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from admin_cli import create_admin_command
 from config import Config
@@ -40,6 +41,8 @@ def create_app(config_class: type = Config) -> Flask:
     """
     app = Flask(__name__)
     app.config.from_object(config_class)
+    # Production traffic passes through one local Nginx proxy.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 
     # Initialise extensions
     db.init_app(app)

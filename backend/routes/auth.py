@@ -12,7 +12,10 @@ from flask_jwt_extended import (
 )
 from flask_jwt_extended.exceptions import JWTExtendedException
 from flask_mail import Message
+from flask_limiter.util import get_remote_address
 from jwt import PyJWTError
+from sqlalchemy import or_
+from sqlalchemy.orm import aliased
 
 from extensions import db, mail, limiter
 from models.refresh_session import RefreshSession
@@ -90,6 +93,14 @@ def _decode_refresh_cookie() -> dict | None:
     return claims
 
 
+def _refresh_rate_limit_key() -> str:
+    claims = _decode_refresh_cookie()
+    user_id = claims.get("sub") if claims else None
+    if user_id:
+        return f"user:{user_id}"
+    return f"ip:{get_remote_address()}"
+
+
 def _build_refresh_session(user: User) -> tuple[str, RefreshSession]:
     refresh_token = create_refresh_token(identity=str(user.id))
     claims = decode_token(refresh_token)
@@ -130,6 +141,28 @@ def _prune_expired_auth_rows(now: datetime) -> None:
     RevokedToken.query.filter(RevokedToken.expires_at <= now).delete(
         synchronize_session=False,
     )
+    _prune_redundant_refresh_sessions()
+
+
+def _prune_redundant_refresh_sessions() -> None:
+    successor = aliased(RefreshSession)
+    redundant_session_ids = (
+        db.select(RefreshSession.id)
+        .outerjoin(
+            successor,
+            RefreshSession.replaced_by_session_id == successor.id,
+        )
+        .where(
+            RefreshSession.revoked_at.is_not(None),
+            or_(
+                RefreshSession.replaced_by_session_id.is_(None),
+                successor.revoked_at.is_not(None),
+            ),
+        )
+    )
+    RefreshSession.query.filter(
+        RefreshSession.id.in_(redundant_session_ids),
+    ).delete(synchronize_session=False)
 
 
 def _revoke_all_refresh_sessions(user_id: int, now: datetime | None = None) -> None:
@@ -137,6 +170,7 @@ def _revoke_all_refresh_sessions(user_id: int, now: datetime | None = None) -> N
         {"revoked_at": now or datetime.utcnow()},
         synchronize_session=False,
     )
+    _prune_redundant_refresh_sessions()
 
 
 def _revoke_current_refresh_session(now: datetime | None = None) -> None:
@@ -150,6 +184,8 @@ def _revoke_current_refresh_session(now: datetime | None = None) -> None:
     ).first()
     if session:
         session.revoked_at = now or datetime.utcnow()
+        db.session.flush()
+        _prune_redundant_refresh_sessions()
 
 
 def _revoke_access_token(jwt_data: dict, now: datetime | None = None) -> None:
@@ -396,6 +432,7 @@ def login():
 
 
 @auth_bp.post("/refresh")
+@limiter.limit("30 per minute", key_func=_refresh_rate_limit_key)
 def refresh():
     """Rotate a refresh session and return a fresh access token."""
     claims = _decode_refresh_cookie()
@@ -435,6 +472,8 @@ def refresh():
     user = session.user
     if not user or not user.is_verified:
         session.revoked_at = now
+        db.session.flush()
+        _prune_redundant_refresh_sessions()
         db.session.commit()
         response = jsonify({"error": "invalid session"})
         _clear_refresh_cookie(response)
@@ -445,6 +484,7 @@ def refresh():
     db.session.add(refresh_session)
     db.session.flush()
     session.replaced_by_session_id = refresh_session.id
+    _prune_redundant_refresh_sessions()
     db.session.commit()
 
     response = jsonify({

@@ -1,7 +1,9 @@
+import re
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from extensions import db
+from extensions import db, limiter
 from models.league import League
 from models.league_member import LeagueMember
 from models.user import User
@@ -9,6 +11,8 @@ from models.user_prediction import UserPrediction
 from services.epl import has_season_kicked_off, get_latest_epl_season
 
 leagues_bp = Blueprint("leagues", __name__, url_prefix="/api/leagues")
+
+_SEASON_RE = re.compile(r"^[0-9]{4}-[0-9]{2}$")
 
 
 def _get_membership(league_id: int, user_id: int) -> LeagueMember | None:
@@ -67,6 +71,10 @@ def _membership_count(user_id: int, season: str) -> int:
     )
 
 
+def _account_rate_limit_key() -> str:
+    return f"user:{get_jwt_identity()}"
+
+
 def _member_payload(member: LeagueMember, season: str, kicked_off: bool) -> dict:
     """Serialise a league member with prediction info.
 
@@ -94,6 +102,7 @@ def _member_payload(member: LeagueMember, season: str, kicked_off: bool) -> dict
 
 @leagues_bp.post("/")
 @jwt_required()
+@limiter.limit("5 per minute", key_func=_account_rate_limit_key)
 def create_league():
     """Create a new league for the authenticated user.
 
@@ -105,19 +114,35 @@ def create_league():
         season (str): Season string in ``'20xx-xx'`` format.
 
     Returns:
-        201 with the new league object, or 400 on missing fields.
+        201 with the new league object, 400 for invalid input, or 503 when the
+        current season cannot be resolved.
     """
     user_id = get_jwt_identity()
-    data = request.get_json(silent=True) or {}
-    name = (data.get("name") or "").strip()
-    season = (data.get("season") or "").strip()
+    data = request.get_json(silent=True)
+    data = data if isinstance(data, dict) else {}
+    raw_name = data.get("name")
+    raw_season = data.get("season")
+    name = raw_name.strip() if isinstance(raw_name, str) else ""
 
     if not name:
         return jsonify({"error": "name is required"}), 400
     if len(name) > 40:
         return jsonify({"error": "name must be 40 characters or fewer"}), 400
-    if not season:
+    if not isinstance(raw_season, str) or not raw_season.strip():
         return jsonify({"error": "season is required"}), 400
+    season = raw_season.strip()
+    if not _SEASON_RE.fullmatch(season):
+        return jsonify({"error": "season must use the YYYY-YY format"}), 400
+
+    try:
+        current_season = get_latest_epl_season()
+    except (FileNotFoundError, RuntimeError, ValueError):
+        return jsonify({"error": "Current season is temporarily unavailable"}), 503
+
+    if season != current_season:
+        return jsonify({"error": f"season must be the current season ({current_season})"}), 400
+
+    season = current_season
     if _owned_count(user_id, season) >= 10:
         return jsonify({"error": "You cannot own more than 10 leagues in a single season"}), 400
     if _membership_count(user_id, season) >= 30:
@@ -216,6 +241,7 @@ def get_league(league_id: int):
 
 @leagues_bp.post("/join")
 @jwt_required()
+@limiter.limit("5 per minute", key_func=_account_rate_limit_key)
 def join_league():
     """Join a league using its invite code.
 

@@ -104,7 +104,9 @@ export default function Standings() {
           </p>
         </div>
         {refreshedLabel && (
-          <span className="text-white/25 text-xs mt-1">Updated {refreshedLabel}</span>
+          <span className="text-white/25 text-xs mt-1">
+            Updated daily · Last changed: {refreshedLabel}
+          </span>
         )}
       </div>
 

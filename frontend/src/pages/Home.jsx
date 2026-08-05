@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
+import DeadlineCountdown from '../components/DeadlineCountdown'
 import { usePageLoading } from '../components/PageLoadingContext'
 
 // ---------------------------------------------------------------------------
@@ -78,7 +79,7 @@ function PredictionCard({ prediction, season, kickedOff, actualLookup }) {
             {updated_at ? `Updated ${dateLabel}` : `Submitted ${dateLabel}`}
           </p>
         </div>
-        {points !== null && points !== undefined && (
+        {kickedOff && points !== null && points !== undefined && (
           <div className="text-right">
             <p className="text-teal text-xl font-bold leading-none">{points}</p>
             <p className="text-white/30 text-[10px] mt-0.5">pts</p>
@@ -188,7 +189,9 @@ function ActualStandingsCard({ standings, updatedAt, kickedOff, season }) {
       <div className="mb-4">
         <p className="text-white font-semibold text-sm">Live PL table</p>
         {updatedLabel && (
-          <p className="text-white/30 text-xs mt-0.5">Updated {updatedLabel}</p>
+          <p className="text-white/30 text-xs mt-0.5">
+            Updated daily · Last changed: {updatedLabel}
+          </p>
         )}
       </div>
       <div className="grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem] gap-x-3 px-2 pb-1.5">
@@ -452,13 +455,15 @@ export default function Home() {
 
   const deadlineLabel = deadline
     ? new Date(deadline).toLocaleString('en-GB', {
-        weekday: 'short', day: 'numeric', month: 'short',
-        hour: '2-digit', minute: '2-digit',
+        day: 'numeric', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
       })
     : null
 
   const hasPrediction     = !!current?.prediction
-  const globalRank        = current?.global_rank
+  const visiblePoints     = kicked_off ? current?.prediction?.points : null
+  const globalRank        = kicked_off ? current?.global_rank : null
+  const visibleAvgScore   = kicked_off ? avg_score : null
   const currentLeagues    = current?.leagues ?? []
 
   return (
@@ -472,9 +477,6 @@ export default function Home() {
           </h1>
           <p className="text-white/40 text-sm mt-0.5">
             {current_season ? `${current_season} season` : '—'}
-            {deadlineLabel && !kicked_off && (
-              <span className="ml-2 text-teal-muted">· deadline {deadlineLabel}</span>
-            )}
             {kicked_off && (
               <span className="ml-2 text-white/25">· season in progress</span>
             )}
@@ -490,20 +492,28 @@ export default function Home() {
         )}
       </div>
 
+      {!kicked_off && deadlineLabel && (
+        <DeadlineCountdown
+          key={deadline}
+          deadline={deadline}
+          deadlineLabel={deadlineLabel}
+        />
+      )}
+
       {/* ── Stats row ── */}
       <div className="flex gap-3 flex-wrap">
         <StatCard
           label="Global rank"
           value={globalRank ? `#${globalRank.rank}` : '—'}
-          sub={globalRank ? `of ${globalRank.total} predictors` : current?.prediction?.points != null ? 'calculating…' : kicked_off ? 'no prediction' : 'season not started'}
+          sub={globalRank ? `of ${globalRank.total} predictors` : visiblePoints != null ? 'calculating…' : kicked_off ? 'no prediction' : 'season not started'}
         />
         <StatCard
           label="Your score"
-          value={current?.prediction?.points ?? '—'}
+          value={visiblePoints ?? '—'}
           sub={
-            current?.prediction?.points != null && avg_score != null
-              ? `worldwide seasonal average: ${avg_score}`
-              : current?.prediction?.points != null
+            visiblePoints != null && visibleAvgScore != null
+              ? `worldwide seasonal average: ${visibleAvgScore}`
+              : visiblePoints != null
               ? 'lower is better'
               : kicked_off ? 'no prediction' : 'pending kick-off'
           }
@@ -603,4 +613,3 @@ export default function Home() {
     </div>
   )
 }
-

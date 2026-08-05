@@ -1,7 +1,9 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import func
 
 from extensions import db
+from models.elo_projection import EloProjection
 from models.league import League
 from models.league_member import LeagueMember
 from models.user import User
@@ -103,8 +105,8 @@ def _season_summary(season: str, user_id: int, kicked_off: bool) -> dict:
     if prediction:
         prediction_payload = {
             "standings": prediction.standings if kicked_off else None,
-            "points": prediction.current_points,
-            "exact_predictions": prediction.exact_predictions,
+            "points": prediction.current_points if kicked_off else None,
+            "exact_predictions": prediction.exact_predictions if kicked_off else None,
             "submitted_at": prediction.submitted_at.isoformat(),
             "updated_at": prediction.updated_at.isoformat() if prediction.updated_at else None,
         }
@@ -119,7 +121,7 @@ def _season_summary(season: str, user_id: int, kicked_off: bool) -> dict:
     for m in memberships:
         league = m.league
         member_count = LeagueMember.query.filter_by(league_id=league.id).count()
-        rank_info = _league_rank(league.id, user_id, season)
+        rank_info = _league_rank(league.id, user_id, season) if kicked_off else None
         leagues_payload.append({
             "id": league.id,
             "name": league.name,
@@ -129,7 +131,7 @@ def _season_summary(season: str, user_id: int, kicked_off: bool) -> dict:
             "rank": rank_info,
         })
 
-    global_rank = _global_rank(season, user_id)
+    global_rank = _global_rank(season, user_id) if kicked_off else None
 
     return {
         "prediction": prediction_payload,
@@ -166,7 +168,7 @@ def get_dashboard():
     current_payload = _season_summary(current_season, user_id, kicked_off) if current_season else None
 
     # Average score across all scored predictions for the current season.
-    if current_season:
+    if current_season and kicked_off:
         scored = [
             p.current_points for p in
             UserPrediction.query
@@ -217,18 +219,25 @@ def get_stats():
     No authentication required. Stats are computed on the fly from live data.
 
     Returns:
-        200 with ``total_predicted_positions``, ``total_leagues``,
-        ``total_users``, and ``total_predictions`` keys.
+        200 with public prediction, league, user, and simulation totals.
     """
     total_predictions = UserPrediction.query.count()
     total_leagues     = League.query.count()
     total_users       = User.query.count()
+    total_match_outcomes_simulated = db.session.scalar(
+        db.select(func.coalesce(func.sum(EloProjection.match_outcomes_simulated), 0))
+    )
+    total_alternative_seasons_simulated = db.session.scalar(
+        db.select(func.coalesce(func.sum(EloProjection.simulation_count), 0))
+    )
 
     return jsonify({
         "total_predicted_positions": total_predictions * 20,
         "total_predictions":         total_predictions,
         "total_leagues":             total_leagues,
         "total_users":               total_users,
+        "total_match_outcomes_simulated": int(total_match_outcomes_simulated),
+        "total_alternative_seasons_simulated": int(total_alternative_seasons_simulated),
     }), 200
 
 
@@ -282,11 +291,11 @@ def get_user_profile(user_id: int):
 
     def _build_season(season: str, ko: bool) -> dict:
         prediction = UserPrediction.query.filter_by(user_id=user_id, season=season).first()
-        global_rank = _global_rank(season, user_id)
+        global_rank = _global_rank(season, user_id) if ko else None
         return {
             "season": season,
-            "score": prediction.current_points if prediction else None,
-            "exact_predictions": prediction.exact_predictions if prediction else None,
+            "score": prediction.current_points if (prediction and ko) else None,
+            "exact_predictions": prediction.exact_predictions if (prediction and ko) else None,
             "global_rank": global_rank,
             "has_prediction": prediction is not None,
             "prediction_standings": prediction.standings if (prediction and ko) else None,
@@ -311,6 +320,3 @@ def get_user_profile(user_id: int):
         "current_season": current,
         "history": history,
     }), 200
-
-
-
