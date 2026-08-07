@@ -4,6 +4,7 @@ let snapshot = {
   accessToken: null,
   user: null,
   ready: false,
+  suppressReturnTo: false,
 }
 
 const listeners = new Set()
@@ -31,17 +32,17 @@ export function useAuth() {
 }
 
 export function setAuthenticated(accessToken, user) {
-  emit({ accessToken, user, ready: true })
+  emit({ accessToken, user, ready: true, suppressReturnTo: false })
 }
 
 export function setAccessToken(accessToken) {
-  emit({ ...snapshot, accessToken, ready: true })
+  emit({ ...snapshot, accessToken, ready: true, suppressReturnTo: false })
 }
 
 export function setAuthUser(user) {
   emit({ ...snapshot, user, ready: true })
 }
 
-export function clearAuthState() {
-  emit({ accessToken: null, user: null, ready: true })
+export function clearAuthState({ suppressReturnTo = false } = {}) {
+  emit({ accessToken: null, user: null, ready: true, suppressReturnTo })
 }

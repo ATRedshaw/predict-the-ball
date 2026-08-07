@@ -107,8 +107,8 @@ export default function Settings() {
     } catch {
       // The session may already be invalid locally or on the server.
     }
-    clearAuthState()
-    navigate('/')
+    clearAuthState({ suppressReturnTo: true })
+    navigate('/login', { replace: true })
   }
 
   async function handleProfileSave(e) {
@@ -158,8 +158,8 @@ export default function Settings() {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      clearAuthState()
-      navigate('/login')
+      clearAuthState({ suppressReturnTo: true })
+      navigate('/login', { replace: true })
     } catch (err) {
       setPasswordMsg({ type: 'err', text: err.message })
     } finally {
@@ -186,8 +186,8 @@ export default function Settings() {
     setDeleteBusy(true)
     try {
       await api.delete('/api/auth/me', { transfers: transferMap })
-      clearAuthState()
-      navigate('/')
+      clearAuthState({ suppressReturnTo: true })
+      navigate('/', { replace: true })
     } catch (err) {
       setDeleteMsg({ type: 'err', text: err.message })
       setDeleteBusy(false)
