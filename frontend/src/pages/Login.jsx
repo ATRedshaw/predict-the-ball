@@ -1,11 +1,14 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { setAuthenticated } from '../authState'
+import { buildAuthPath, getReturnTo } from '../authRedirect'
 import { markInstallPromptAfterAuth } from '../pwa/installPrompt'
 
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = getReturnTo(location.search)
 
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
@@ -26,7 +29,7 @@ export default function Login() {
       const data = await api.post('/api/auth/login', { email, password }, true)
       setAuthenticated(data.access_token, data.user)
       markInstallPromptAfterAuth()
-      navigate('/dashboard')
+      navigate(returnTo, { replace: true })
     } catch (err) {
       if (err.code === 'email_not_verified') {
         setError('')
@@ -49,7 +52,7 @@ export default function Login() {
       const data = await api.post('/api/auth/login', { email, password }, true)
       setAuthenticated(data.access_token, data.user)
       markInstallPromptAfterAuth()
-      navigate('/dashboard')
+      navigate(returnTo, { replace: true })
     } catch (err) {
       setError(err.message)
     } finally {
@@ -100,7 +103,7 @@ export default function Login() {
                     <label className="block text-teal-muted text-xs uppercase tracking-widest">
                       Password
                     </label>
-                    <Link to="/forgot-password" className="text-teal-muted text-xs hover:text-teal transition-colors">
+                    <Link to={buildAuthPath('/forgot-password', returnTo)} className="text-teal-muted text-xs hover:text-teal transition-colors">
                       Forgot password?
                     </Link>
                   </div>
@@ -132,7 +135,7 @@ export default function Login() {
 
               <p className="text-teal-muted text-xs text-center mt-6">
                 No account?{' '}
-                <Link to="/signup" className="text-teal hover:text-white transition-colors">
+                <Link to={buildAuthPath('/signup', returnTo)} className="text-teal hover:text-white transition-colors">
                   Create one free
                 </Link>
               </p>

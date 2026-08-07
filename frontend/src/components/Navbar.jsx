@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import { buildAuthPath, getReturnTo } from '../authRedirect'
 
 function HomeIcon({ className }) {
   return (
@@ -83,6 +84,11 @@ function SignUpIcon({ className }) {
 }
 
 export default function Navbar({ isLoggedIn = false, username = '', activePage = '', isAdmin = false }) {
+  const location = useLocation()
+  const hasReturnTo = new URLSearchParams(location.search).has('returnTo')
+  const returnTo = getReturnTo(location.search)
+  const loginPath = hasReturnTo ? buildAuthPath('/login', returnTo) : '/login'
+  const signupPath = hasReturnTo ? buildAuthPath('/signup', returnTo) : '/signup'
   const loggedInLinks = [
     { key: 'dashboard',         label: 'Dashboard',         mobileLabel: 'Home',    to: '/dashboard',         icon: HomeIcon        },
     { key: 'predictions',       label: 'Predictions',       mobileLabel: 'Picks',   to: '/predictions',       icon: PredictionsIcon },
@@ -91,8 +97,8 @@ export default function Navbar({ isLoggedIn = false, username = '', activePage =
   ]
   const publicLinks = [
     { key: 'landing', label: 'Home', to: '/',       icon: HomeIcon   },
-    { key: 'login',   label: 'Log in', to: '/login', icon: LoginIcon  },
-    { key: 'signup',  label: 'Sign up', to: '/signup', icon: SignUpIcon },
+    { key: 'login',   label: 'Log in', to: loginPath, icon: LoginIcon  },
+    { key: 'signup',  label: 'Sign up', to: signupPath, icon: SignUpIcon },
   ]
   const mobileLinks = isLoggedIn
     ? [
@@ -157,13 +163,13 @@ export default function Navbar({ isLoggedIn = false, username = '', activePage =
           ) : (
             <>
               <Link
-                to="/login"
+                to={loginPath}
                 className="text-mist text-sm hover:text-white transition-colors"
               >
                 Log in
               </Link>
               <Link
-                to="/signup"
+                to={signupPath}
                 className="bg-teal hover:bg-teal-muted text-white text-sm px-4 py-2 rounded-lg transition-colors"
               >
                 Sign up free

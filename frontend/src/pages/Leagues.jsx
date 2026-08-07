@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { usePageLoading } from '../components/PageLoadingContext'
 
@@ -122,8 +122,8 @@ function CreateLeagueModal({ season, onClose, onCreate }) {
 // Join league modal
 // ---------------------------------------------------------------------------
 
-function JoinLeagueModal({ onClose, onJoin }) {
-  const [code, setCode]   = useState('')
+function JoinLeagueModal({ initialCode = '', onClose, onJoin }) {
+  const [code, setCode]   = useState(initialCode)
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState('')
 
@@ -456,6 +456,7 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState('')
   const [actionError, setActionError] = useState('')
+  const [shareMessage, setShareMessage] = useState('')
   const [modal, setModal]             = useState(null) // 'transfer' | 'confirm-leave' | 'confirm-delete' | 'confirm-kick'
   const [kickTarget, setKickTarget]   = useState(null)
   const [viewingMember, setViewingMember]   = useState(null)
@@ -510,6 +511,32 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
     } catch (err) {
       setActionError(err.message)
       setModal(null)
+    }
+  }
+
+  async function handleShareInvite() {
+    const inviteUrl = new URL('/leagues', window.location.origin)
+    inviteUrl.searchParams.set('invite', league.code)
+    setShareMessage('')
+
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({
+          title: `Join ${league.name}`,
+          text: `Join ${league.name} on PredictTheBall.`,
+          url: inviteUrl.toString(),
+        })
+        setShareMessage('Invite shared')
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(inviteUrl.toString())
+        setShareMessage('Invite link copied')
+      } else {
+        throw new Error('Sharing is unavailable')
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        setShareMessage('Could not share the invite link')
+      }
     }
   }
 
@@ -604,14 +631,23 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
             <p className="text-white/40 text-xs mb-1">Invite code</p>
             <p className="text-white font-mono text-2xl font-bold tracking-widest">{league.code}</p>
           </div>
-          <button
-            onClick={() => {
-              navigator.clipboard?.writeText(league.code)
-            }}
-            className="text-teal text-xs border border-teal/30 px-4 py-2 rounded-xl hover:bg-teal/10 transition-colors"
-          >
-            Copy code
-          </button>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigator.clipboard?.writeText(league.code)}
+                className="text-white/60 text-xs border border-white/10 px-4 py-2 rounded-xl hover:bg-white/5 transition-colors"
+              >
+                Copy code
+              </button>
+              <button
+                onClick={handleShareInvite}
+                className="text-teal text-xs border border-teal/30 px-4 py-2 rounded-xl hover:bg-teal/10 transition-colors"
+              >
+                Share invite
+              </button>
+            </div>
+            {shareMessage && <p className="text-white/40 text-xs" aria-live="polite">{shareMessage}</p>}
+          </div>
         </div>
       )}
 
@@ -845,8 +881,14 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
 // League list (main view)
 // ---------------------------------------------------------------------------
 
-function LeagueList({ leagues, season, onSelect, onCreated, onJoined }) {
-  const [modal, setModal] = useState(null) // 'create' | 'join'
+function LeagueList({ leagues, season, inviteCode, onDismissInvite, onSelect, onCreated, onJoined }) {
+  const [modal, setModal] = useState(inviteCode ? 'join' : null) // 'create' | 'join'
+  const activeModal = inviteCode ? 'join' : modal
+
+  function closeJoinModal() {
+    setModal(null)
+    if (inviteCode) onDismissInvite()
+  }
 
   // Build the ordered list of seasons present in the user's leagues, always
   // putting the current season first even if the user has no leagues in it yet.
@@ -961,7 +1003,7 @@ function LeagueList({ leagues, season, onSelect, onCreated, onJoined }) {
         </div>
       )}
 
-      {modal === 'create' && season && (
+      {activeModal === 'create' && season && (
         <CreateLeagueModal
           season={season}
           onClose={() => setModal(null)}
@@ -969,9 +1011,11 @@ function LeagueList({ leagues, season, onSelect, onCreated, onJoined }) {
         />
       )}
 
-      {modal === 'join' && (
+      {activeModal === 'join' && (
         <JoinLeagueModal
-          onClose={() => setModal(null)}
+          key={inviteCode || 'manual'}
+          initialCode={inviteCode}
+          onClose={closeJoinModal}
           onJoin={league => { setModal(null); onJoined(league) }}
         />
       )}
@@ -986,6 +1030,8 @@ function LeagueList({ leagues, season, onSelect, onCreated, onJoined }) {
 export default function Leagues() {
   const { setPageLoading } = usePageLoading()
   const location = useLocation()
+  const navigate = useNavigate()
+  const inviteCode = (new URLSearchParams(location.search).get('invite') ?? '').trim().toUpperCase()
   const [leagues, setLeagues]       = useState([])
   const [season, setSeason]         = useState(null)
   const [currentUserId, setCurrentUserId] = useState(null)
@@ -1010,7 +1056,9 @@ export default function Leagues() {
 
         const params = new URLSearchParams(location.search)
         const targetId = Number(params.get('id'))
-        if (targetId && leagueList.some(l => l.id === targetId)) {
+        if (params.get('invite')) {
+          setPageState('list')
+        } else if (targetId && leagueList.some(l => l.id === targetId)) {
           setSelectedId(targetId)
           setPageState('detail')
         } else {
@@ -1037,6 +1085,7 @@ export default function Leagues() {
     setLeagues(prev => [...prev, { ...league, role: 'member', member_count: 1 }])
     setSelectedId(league.id)
     setPageState('detail')
+    navigate(`/leagues?id=${league.id}`, { replace: true })
   }
 
   function handleBack(refetch = false) {
@@ -1086,6 +1135,8 @@ export default function Leagues() {
     <LeagueList
       leagues={leagues}
       season={season}
+      inviteCode={inviteCode}
+      onDismissInvite={() => navigate('/leagues', { replace: true })}
       onSelect={id => { setSelectedId(id); setPageState('detail') }}
       onCreated={handleCreated}
       onJoined={handleJoined}

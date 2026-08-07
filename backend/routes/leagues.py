@@ -241,7 +241,7 @@ def get_league(league_id: int):
 
 @leagues_bp.post("/join")
 @jwt_required()
-@limiter.limit("5 per minute", key_func=_account_rate_limit_key)
+@limiter.limit("5 per minute; 20 per hour", key_func=_account_rate_limit_key)
 def join_league():
     """Join a league using its invite code.
 

@@ -1,11 +1,15 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
+import { buildAuthPath, getReturnTo } from '../authRedirect'
 
 const STEPS = { EMAIL: 'email', RESET: 'reset', DONE: 'done' }
 
 export default function ForgotPassword() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = getReturnTo(location.search)
+  const loginPath = buildAuthPath('/login', returnTo)
 
   const [step,        setStep]        = useState(STEPS.EMAIL)
   const [email,       setEmail]       = useState('')
@@ -222,7 +226,7 @@ export default function ForgotPassword() {
                 Your password has been reset. Sign in with your new credentials.
               </p>
               <button
-                onClick={() => navigate('/login')}
+                onClick={() => navigate(loginPath)}
                 className="w-full bg-teal text-white font-semibold text-sm py-3 rounded-xl hover:bg-jet transition-colors"
               >
                 Back to sign in
@@ -233,7 +237,7 @@ export default function ForgotPassword() {
           {step !== STEPS.DONE && (
             <p className="text-teal-muted text-xs text-center mt-6">
               Remembered it?{' '}
-              <Link to="/login" className="text-teal hover:text-white transition-colors">
+              <Link to={loginPath} className="text-teal hover:text-white transition-colors">
                 Sign in
               </Link>
             </p>

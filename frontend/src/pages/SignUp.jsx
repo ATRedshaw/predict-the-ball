@@ -1,11 +1,14 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { setAuthenticated } from '../authState'
+import { buildAuthPath, getReturnTo } from '../authRedirect'
 import { markInstallPromptAfterAuth } from '../pwa/installPrompt'
 
 export default function SignUp() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = getReturnTo(location.search)
 
   // Step 1 fields
   const [firstName, setFirstName] = useState('')
@@ -51,7 +54,7 @@ export default function SignUp() {
       const data = await api.post('/api/auth/login', { email, password }, true)
       setAuthenticated(data.access_token, data.user)
       markInstallPromptAfterAuth()
-      navigate('/dashboard')
+      navigate(returnTo, { replace: true })
     } catch (err) {
       setError(err.message)
     } finally {
@@ -163,7 +166,7 @@ export default function SignUp() {
 
               <p className="text-teal-muted text-xs text-center mt-6">
                 Already have an account?{' '}
-                <Link to="/login" className="text-teal hover:text-white transition-colors">
+                <Link to={buildAuthPath('/login', returnTo)} className="text-teal hover:text-white transition-colors">
                   Sign in
                 </Link>
               </p>
