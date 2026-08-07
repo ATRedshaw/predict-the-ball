@@ -523,7 +523,7 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
       if (typeof navigator.share === 'function') {
         await navigator.share({
           title: `Join ${league.name}`,
-          text: `Join ${league.name} on PredictTheBall.`,
+          text: `Join ${league.name} on PredictTheBall using code: ${league.code}`,
           url: inviteUrl.toString(),
         })
         setShareMessage('Invite shared')
