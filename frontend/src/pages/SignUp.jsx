@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { setAuthenticated } from '../authState'
 import { buildAuthPath, getReturnTo } from '../authRedirect'
+import NewPasswordField from '../components/PasswordField'
 import { markInstallPromptAfterAuth } from '../pwa/installPrompt'
 
 export default function SignUp() {
@@ -133,21 +134,12 @@ export default function SignUp() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-teal-muted text-xs uppercase tracking-widest mb-2">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    minLength={8}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    className="w-full bg-jet rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none border border-transparent focus:border-teal transition-colors"
-                    placeholder="At least 8 characters"
-                  />
-                </div>
+                <NewPasswordField
+                  id="signup-password"
+                  label="Password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                />
 
                 {error && (
                   <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-3">

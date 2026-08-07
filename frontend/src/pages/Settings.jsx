@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { clearAuthState, setAuthUser, useAuth } from '../authState'
 import { usePageLoading } from '../components/PageLoadingContext'
+import NewPasswordField, { PasswordInput, PasswordMatchStatus } from '../components/PasswordField'
+import { meetsPasswordMinimum } from '../passwordValidation'
 
 // ─── Small reusable section wrapper ───────────────────────────────────────────
 
@@ -142,7 +144,7 @@ export default function Settings() {
       setPasswordMsg({ type: 'err', text: 'New passwords do not match.' })
       return
     }
-    if (newPassword.length < 8) {
+    if (!meetsPasswordMinimum(newPassword)) {
       setPasswordMsg({ type: 'err', text: 'New password must be at least 8 characters.' })
       return
     }
@@ -262,44 +264,45 @@ export default function Settings() {
       {/* ── Password ── */}
       <Section
         title="Change password"
-        description="Must be at least 8 characters."
+        description="Eight characters are required; the additional checks are recommendations."
       >
         <form onSubmit={handlePasswordChange} className="space-y-4">
-          <Field label="Current password">
-            <input
-              type="password"
-              required
+          <div>
+            <label htmlFor="settings-current-password" className="block text-teal-muted text-xs uppercase tracking-widest mb-2">
+              Current password
+            </label>
+            <PasswordInput
+              id="settings-current-password"
               autoComplete="current-password"
               value={currentPassword}
               onChange={e => setCurrentPassword(e.target.value)}
-              className="w-full bg-jet rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none border border-transparent focus:border-teal transition-colors"
-              placeholder="••••••••"
             />
-          </Field>
+          </div>
 
-          <Field label="New password">
-            <input
-              type="password"
-              required
-              autoComplete="new-password"
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-              className="w-full bg-jet rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none border border-transparent focus:border-teal transition-colors"
-              placeholder="••••••••"
-            />
-          </Field>
+          <NewPasswordField
+            id="settings-new-password"
+            label="New password"
+            value={newPassword}
+            onChange={e => setNewPassword(e.target.value)}
+          />
 
-          <Field label="Confirm new password">
-            <input
-              type="password"
-              required
+          <div>
+            <label htmlFor="settings-confirm-password" className="block text-teal-muted text-xs uppercase tracking-widest mb-2">
+              Confirm new password
+            </label>
+            <PasswordInput
+              id="settings-confirm-password"
               autoComplete="new-password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
-              className="w-full bg-jet rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none border border-transparent focus:border-teal transition-colors"
-              placeholder="••••••••"
+              describedBy={confirmPassword ? 'settings-password-match' : undefined}
             />
-          </Field>
+            <PasswordMatchStatus
+              id="settings-password-match"
+              password={newPassword}
+              confirmation={confirmPassword}
+            />
+          </div>
 
           {passwordMsg && (
             <Feedback type={passwordMsg.type} text={passwordMsg.text} />

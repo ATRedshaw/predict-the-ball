@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { buildAuthPath, getReturnTo } from '../authRedirect'
+import NewPasswordField, { PasswordInput, PasswordMatchStatus } from '../components/PasswordField'
 
 const STEPS = { EMAIL: 'email', RESET: 'reset', DONE: 'done' }
 
@@ -159,33 +160,28 @@ export default function ForgotPassword() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-teal-muted text-xs uppercase tracking-widest mb-2">
-                    New password
-                  </label>
-                  <input
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    value={newPassword}
-                    onChange={e => setNewPassword(e.target.value)}
-                    className="w-full bg-jet rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none border border-transparent focus:border-teal transition-colors"
-                    placeholder="At least 8 characters"
-                  />
-                </div>
+                <NewPasswordField
+                  id="forgot-new-password"
+                  label="New password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                />
 
                 <div>
-                  <label className="block text-teal-muted text-xs uppercase tracking-widest mb-2">
+                  <label htmlFor="forgot-confirm-password" className="block text-teal-muted text-xs uppercase tracking-widest mb-2">
                     Confirm password
                   </label>
-                  <input
-                    type="password"
+                  <PasswordInput
+                    id="forgot-confirm-password"
                     autoComplete="new-password"
-                    required
                     value={confirm}
                     onChange={e => setConfirm(e.target.value)}
-                    className="w-full bg-jet rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none border border-transparent focus:border-teal transition-colors"
-                    placeholder="••••••••"
+                    describedBy={confirm ? 'forgot-password-match' : undefined}
+                  />
+                  <PasswordMatchStatus
+                    id="forgot-password-match"
+                    password={newPassword}
+                    confirmation={confirm}
                   />
                 </div>
 
