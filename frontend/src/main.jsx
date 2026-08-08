@@ -11,6 +11,7 @@ import Layout         from './components/Layout.jsx'
 import GuestRoute     from './components/GuestRoute.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import AdminRoute     from './components/AdminRoute.jsx'
+import HowItWorksRoute from './components/HowItWorksRoute.jsx'
 import App            from './App.jsx'
 import Login          from './pages/Login.jsx'
 import SignUp         from './pages/SignUp.jsx'
@@ -31,6 +32,10 @@ const router = createBrowserRouter(
     <Route element={<Layout />}>
       {/* Public */}
       <Route path="/" element={<App />} />
+      <Route
+        path="/how-it-works"
+        element={<HowItWorksRoute />}
+      />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms"   element={<Terms />}   />
 

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, ScrollRestoration, useLocation } from 'react-router-dom'
 import Navbar from './Navbar'
 import Footer from './Footer'
 import { PageLoadingProvider } from './PageLoadingContext'
@@ -10,6 +10,7 @@ import { clearAuthState, useAuth } from '../authState'
 
 const PATH_TO_PAGE = {
   '/':                   'landing',
+  '/how-it-works':       'how-it-works',
   '/login':              'login',
   '/signup':             'signup',
   '/dashboard':          'dashboard',
@@ -46,6 +47,7 @@ export default function Layout() {
           <Footer />
         </div>
         <InstallBanner isLoggedIn={isLoggedIn} />
+        <ScrollRestoration />
       </PageLoadingProvider>
     </InstallPromptProvider>
   )

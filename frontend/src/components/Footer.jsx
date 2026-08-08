@@ -13,6 +13,7 @@ export default function Footer() {
         </a>
       </span>
       <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+        <a href="/how-it-works" className="hover:text-teal-muted transition-colors">How it works</a>
         <a href="/privacy" className="hover:text-teal-muted transition-colors">Privacy</a>
         <a href="/terms"   className="hover:text-teal-muted transition-colors">Terms</a>
         <a href="mailto:predict.the.ball.app@gmail.com" className="hover:text-teal-muted transition-colors">Contact</a>

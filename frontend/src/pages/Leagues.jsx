@@ -617,7 +617,7 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
           {isPastSeason
             ? <Badge colour="muted">Season ended</Badge>
             : league.kicked_off
-              ? <Badge colour="red">Season live</Badge>
+              ? <Badge colour="red">Predictions locked</Badge>
               : <Badge colour="teal">Predictions open</Badge>
           }
           {isOwner && <Badge colour="yellow">Owner</Badge>}
@@ -655,7 +655,7 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
       {!league.kicked_off && (
         <div className="bg-teal/10 border border-teal/20 rounded-2xl px-4 py-3 mb-4">
           <p className="text-teal text-xs">
-            Predictions and scores are hidden until the season kicks off. The leaderboard will appear once the first match has been played.
+            Predictions are hidden until the deadline, 90 minutes before the opening fixture. Scores appear once current table data is available.
           </p>
         </div>
       )}

@@ -16,7 +16,7 @@ function App() {
 
   useLayoutEffect(() => {
     setPageLoading(true)
-  }, [])
+  }, [setPageLoading])
 
   useEffect(() => {
     async function load() {
@@ -81,23 +81,28 @@ function App() {
               <span className="text-mist">Beat your mates.</span>
             </h1>
             <p className="text-mist mt-4 max-w-md text-base opacity-80">
-              Pick where every Premier League club finishes before a ball is kicked. Your final score is the gap between your predictions and reality, where the lowest total wins.
+              Submit a complete predicted table before the deadline. Scores measure the total positional difference from the current standings, and the lowest total wins.
             </p>
           </div>
 
           <div className="relative z-10 flex gap-3 mt-8">
             {isLoggedIn ? (
-              <Link to="/dashboard" className="bg-white text-jet font-semibold text-sm px-6 py-3 rounded-xl hover:bg-bone transition-colors">
-                Go to dashboard
-              </Link>
+              <>
+                <Link to="/dashboard" className="bg-white text-jet font-semibold text-sm px-6 py-3 rounded-xl hover:bg-bone transition-colors">
+                  Go to dashboard
+                </Link>
+                <Link to="/how-it-works" className="border border-white/30 text-white text-sm px-6 py-3 rounded-xl hover:bg-white/10 transition-colors">
+                  How it works
+                </Link>
+              </>
             ) : (
               <>
                 <Link to="/signup" className="bg-white text-jet font-semibold text-sm px-6 py-3 rounded-xl hover:bg-bone transition-colors">
                   Get started
                 </Link>
-                <button className="border border-white/30 text-white text-sm px-6 py-3 rounded-xl hover:bg-white/10 transition-colors">
+                <Link to="/how-it-works" className="border border-white/30 text-white text-sm px-6 py-3 rounded-xl hover:bg-white/10 transition-colors">
                   How it works
-                </button>
+                </Link>
               </>
             )}
           </div>
@@ -231,7 +236,7 @@ function App() {
           <div className="col-span-12 bg-teal rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
               <h2 className="text-white text-2xl font-bold">Ready to make your call?</h2>
-              <p className="text-mist text-sm mt-1 opacity-80">Predictions lock when the season starts. Get yours in early.</p>
+              <p className="text-mist text-sm mt-1 opacity-80">Predictions lock 90 minutes before the opening fixture.</p>
             </div>
             <Link to="/signup" className="bg-white text-jet font-semibold px-8 py-3 rounded-xl hover:bg-bone transition-colors whitespace-nowrap">
               Create free account

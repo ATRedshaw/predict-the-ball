@@ -23,3 +23,215 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+html {
+  scroll-behavior: smooth;
+}
+
+.guide-hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: linear-gradient(to bottom right, black, transparent 78%);
+}
+
+.guide-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 700ms ease, transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.guide-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.guide-orbit {
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: guide-orbit 18s linear infinite;
+}
+
+.guide-orbit::after {
+  position: absolute;
+  top: 50%;
+  left: -4px;
+  width: 8px;
+  height: 8px;
+  content: '';
+  border-radius: 9999px;
+  background: #D1E0DD;
+  box-shadow: 0 0 18px rgba(209, 224, 221, 0.7);
+}
+
+.guide-orbit-one {
+  inset: -28px;
+}
+
+.guide-orbit-two {
+  inset: 32px -54px;
+  animation-direction: reverse;
+  animation-duration: 13s;
+}
+
+.guide-table-row {
+  opacity: 0;
+  animation: guide-row-arrive 550ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation-delay: calc(180ms + var(--guide-row) * 90ms);
+}
+
+.guide-live-chip,
+.guide-model-pulse {
+  animation: guide-soft-pulse 2.4s ease-in-out infinite;
+}
+
+.guide-demo-drag {
+  position: relative;
+  z-index: 2;
+  animation: guide-demo-drag 2.8s ease-in-out infinite;
+}
+
+.guide-score-pop {
+  display: inline-block;
+  animation: guide-score-pop 320ms cubic-bezier(0.2, 0.9, 0.35, 1.35);
+}
+
+.guide-lock-ring {
+  animation: guide-lock-ring 3.2s ease-out infinite;
+}
+
+.guide-lock-ring-two {
+  animation-delay: 900ms;
+}
+
+.guide-league-row {
+  animation: guide-league-row 400ms ease both;
+  animation-delay: calc(var(--guide-row) * 70ms);
+}
+
+.guide-model-bar {
+  width: 0;
+}
+
+.guide-reveal.is-visible .guide-model-bar {
+  width: var(--guide-width);
+  transition: width 900ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-delay: calc(180ms + var(--guide-row) * 100ms);
+}
+
+.guide-cta-ball {
+  animation: guide-orbit 20s linear infinite;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+@keyframes guide-row-arrive {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes guide-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes guide-soft-pulse {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes guide-demo-drag {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  50% {
+    transform: translateY(-5px) rotate(-0.5deg);
+  }
+}
+
+@keyframes guide-score-pop {
+  from {
+    opacity: 0.4;
+    transform: translateY(5px) scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes guide-lock-ring {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  35% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes guide-league-row {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .guide-reveal,
+  .guide-reveal.is-visible {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .guide-orbit,
+  .guide-table-row,
+  .guide-live-chip,
+  .guide-model-pulse,
+  .guide-demo-drag,
+  .guide-score-pop,
+  .guide-lock-ring,
+  .guide-league-row,
+  .guide-cta-ball {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .guide-model-bar,
+  .guide-reveal.is-visible .guide-model-bar {
+    width: var(--guide-width);
+    transition: none;
+  }
+}

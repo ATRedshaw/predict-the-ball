@@ -207,7 +207,7 @@ function UnsavedChangesModal({ onStay, onLeave }) {
  * Page states:
  *  loading   — fetching season/deadline/prediction data
  *  pre-season — deadline not yet reached; user can submit/edit a prediction
- *  in-season  — season has kicked off; show existing prediction or placeholder
+ *  in-season  — deadline has passed; show existing prediction or placeholder
  *  error      — something went wrong
  */
 export default function Predictions() {
@@ -418,7 +418,7 @@ export default function Predictions() {
         <div className="bg-jet-dark rounded-2xl p-8 text-center">
           <p className="text-white/40 text-sm">No prediction was made before the deadline.</p>
           <p className="text-white/20 text-xs mt-2">
-            Predictions could only be submitted before the first match kicked off.
+            Predictions could only be submitted before the deadline, 90 minutes before the opening fixture.
           </p>
         </div>
       )}

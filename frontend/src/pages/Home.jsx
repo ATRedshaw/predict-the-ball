@@ -478,18 +478,26 @@ export default function Home() {
           <p className="text-white/40 text-sm mt-0.5">
             {current_season ? `${current_season} season` : '—'}
             {kicked_off && (
-              <span className="ml-2 text-white/25">· season in progress</span>
+              <span className="ml-2 text-white/25">· predictions locked</span>
             )}
           </p>
         </div>
-        {!hasPrediction && !kicked_off && current_season && (
+        <div className="flex items-center gap-2">
+          {!hasPrediction && !kicked_off && current_season && (
+            <Link
+              to="/predictions"
+              className="bg-teal text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-teal/80 transition-colors shrink-0"
+            >
+              Submit prediction
+            </Link>
+          )}
           <Link
-            to="/predictions"
-            className="bg-teal text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-teal/80 transition-colors shrink-0"
+            to="/how-it-works"
+            className="shrink-0 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-medium text-teal-muted transition-colors hover:bg-white/5 hover:text-white"
           >
-            Submit prediction
+            Rules &amp; scoring
           </Link>
-        )}
+        </div>
       </div>
 
       {!kicked_off && deadlineLabel && (
