@@ -4,6 +4,7 @@ import { api } from '../api'
 import { setAuthenticated } from '../authState'
 import { buildAuthPath, getReturnTo } from '../authRedirect'
 import NewPasswordField from '../components/PasswordField'
+import { MAX_NAME_LENGTH } from '../nameValidation'
 import { markInstallPromptAfterAuth } from '../pwa/installPrompt'
 
 export default function SignUp() {
@@ -95,7 +96,7 @@ export default function SignUp() {
                       type="text"
                       autoComplete="given-name"
                       required
-                      maxLength={35}
+                      maxLength={MAX_NAME_LENGTH}
                       value={firstName}
                       onChange={e => setFirstName(e.target.value.replace(/\b\w/g, c => c.toUpperCase()))}
                       className="w-full bg-jet rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none border border-transparent focus:border-teal transition-colors"
@@ -110,7 +111,7 @@ export default function SignUp() {
                       type="text"
                       autoComplete="family-name"
                       required
-                      maxLength={35}
+                      maxLength={MAX_NAME_LENGTH}
                       value={lastName}
                       onChange={e => setLastName(e.target.value.replace(/\b\w/g, c => c.toUpperCase()))}
                       className="w-full bg-jet rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none border border-transparent focus:border-teal transition-colors"

@@ -471,8 +471,8 @@ export default function Home() {
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-white text-2xl font-bold leading-tight">
+        <div className="min-w-0 max-w-full flex-1">
+          <h1 className="truncate text-white text-2xl font-bold leading-tight">
             Hey, {user.first_name}
           </h1>
           <p className="text-white/40 text-sm mt-0.5">

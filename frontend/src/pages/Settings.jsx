@@ -4,6 +4,7 @@ import { api } from '../api'
 import { clearAuthState, setAuthUser, useAuth } from '../authState'
 import { usePageLoading } from '../components/PageLoadingContext'
 import NewPasswordField, { PasswordInput, PasswordMatchStatus } from '../components/PasswordField'
+import { MAX_NAME_LENGTH } from '../nameValidation'
 import { meetsPasswordMinimum } from '../passwordValidation'
 
 // ─── Small reusable section wrapper ───────────────────────────────────────────
@@ -220,6 +221,7 @@ export default function Settings() {
               <input
                 type="text"
                 required
+                maxLength={MAX_NAME_LENGTH}
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
                 className="w-full bg-jet rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none border border-transparent focus:border-teal transition-colors"
@@ -229,6 +231,7 @@ export default function Settings() {
               <input
                 type="text"
                 required
+                maxLength={MAX_NAME_LENGTH}
                 value={lastName}
                 onChange={e => setLastName(e.target.value)}
                 className="w-full bg-jet rounded-xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none border border-transparent focus:border-teal transition-colors"
