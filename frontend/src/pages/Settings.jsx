@@ -1,8 +1,9 @@
-import { useState, useEffect, useLayoutEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { clearAuthState, setAuthUser, useAuth } from '../authState'
-import { usePageLoading } from '../components/PageLoadingContext'
+import { useSmoothLoading } from '../useSmoothLoading'
+import { SettingsSkeleton } from '../components/PageSkeletons'
 import NewPasswordField, { PasswordInput, PasswordMatchStatus } from '../components/PasswordField'
 import { MAX_NAME_LENGTH } from '../nameValidation'
 import { meetsPasswordMinimum } from '../passwordValidation'
@@ -40,8 +41,8 @@ function Field({ label, children }) {
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { setPageLoading } = usePageLoading()
   const { user } = useAuth()
+  const [loading, setLoading] = useState(true)
 
   // Profile state
   const [firstName,     setFirstName]     = useState('')
@@ -70,10 +71,6 @@ export default function Settings() {
   // transfers: { [leagueId]: userId | '' }  — '' means "delete this league"
   const [transfers, setTransfers] = useState({})
 
-  useLayoutEffect(() => {
-    setPageLoading(true)
-  }, [])
-
   useEffect(() => {
     async function load() {
       try {
@@ -94,11 +91,13 @@ export default function Settings() {
       } catch {
         // Non-fatal — fields stay blank
       } finally {
-        setPageLoading(false)
+        setLoading(false)
       }
     }
     load()
-  }, [setPageLoading])
+  }, [])
+
+  const showSkeleton = useSmoothLoading(loading)
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -197,8 +196,10 @@ export default function Settings() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  if (loading || showSkeleton) return <SettingsSkeleton visible={showSkeleton} />
+
   return (
-    <div className="max-w-2xl mx-auto w-full py-4 space-y-4">
+    <div className="page-ready max-w-2xl mx-auto w-full py-4 space-y-4">
 
       {/* ── Log out ── */}
       <div className="flex justify-end">

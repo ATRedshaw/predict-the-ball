@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { Outlet, ScrollRestoration, useLocation } from 'react-router-dom'
 import Navbar from './Navbar'
 import Footer from './Footer'
-import { PageLoadingProvider } from './PageLoadingContext'
 import { InstallPromptProvider } from './InstallPromptProvider'
 import InstallBanner from './InstallBanner'
 import { api } from '../api'
@@ -38,17 +37,15 @@ export default function Layout() {
 
   return (
     <InstallPromptProvider>
-      <PageLoadingProvider>
-        <div className="min-h-screen bg-jet p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6 font-sans flex flex-col">
-          <Navbar isLoggedIn={isLoggedIn} activePage={activePage} username={firstName} isAdmin={isAdmin} />
-          <div className="flex-1 flex flex-col">
-            <Outlet />
-          </div>
-          <Footer />
+      <div className="min-h-screen bg-jet p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6 font-sans flex flex-col">
+        <Navbar isLoggedIn={isLoggedIn} activePage={activePage} username={firstName} isAdmin={isAdmin} />
+        <div className="flex-1 flex flex-col">
+          <Outlet />
         </div>
-        <InstallBanner isLoggedIn={isLoggedIn} />
-        <ScrollRestoration />
-      </PageLoadingProvider>
+        <Footer />
+      </div>
+      <InstallBanner isLoggedIn={isLoggedIn} />
+      <ScrollRestoration />
     </InstallPromptProvider>
   )
 }

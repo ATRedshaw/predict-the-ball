@@ -1,7 +1,8 @@
-import { useState, useEffect, useLayoutEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
-import { usePageLoading } from '../components/PageLoadingContext'
+import { useSmoothLoading } from '../useSmoothLoading'
+import { ModelPredictionsSkeleton } from '../components/PageSkeletons'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -69,7 +70,7 @@ function ProjectionLockedState({ season }) {
   ]
 
   return (
-    <div className="max-w-4xl mx-auto w-full py-2">
+    <div className="page-ready max-w-4xl mx-auto w-full py-2">
       <div className="rounded-2xl bg-jet-dark border border-white/8 overflow-hidden">
         <div className="grid md:grid-cols-[1fr_19rem]">
           <div className="p-6 sm:p-8">
@@ -532,8 +533,7 @@ function CompareTable({ comparison, actualUpdatedAt, projectionUpdatedAt }) {
 // ---------------------------------------------------------------------------
 
 export default function ModelPredictions() {
-  const { setPageLoading } = usePageLoading()
-
+  const [loading, setLoading]         = useState(true)
   const [season, setSeason]           = useState(null)
   const [tab, setTab]                 = useState('projections') // 'projections' | 'compare'
   const [error, setError]             = useState(null)
@@ -554,8 +554,7 @@ export default function ModelPredictions() {
 
   // User vs model context
   const [userContext, setUserContext] = useState(null)
-
-  useLayoutEffect(() => { setPageLoading(true) }, [setPageLoading])
+  const showSkeleton = useSmoothLoading(loading)
 
   // Initial load — get season then fetch latest projection
   useEffect(() => {
@@ -600,11 +599,11 @@ export default function ModelPredictions() {
           setError(err.message)
         }
       } finally {
-        setPageLoading(false)
+        setLoading(false)
       }
     }
     load()
-  }, [setPageLoading])
+  }, [])
 
   // Load compare data when that tab is selected
   useEffect(() => {
@@ -663,6 +662,8 @@ export default function ModelPredictions() {
     fetchCompare(season, compareDateInput || undefined)
   }
 
+  if (loading || showSkeleton) return <ModelPredictionsSkeleton visible={showSkeleton} />
+
   if (error) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -683,7 +684,7 @@ export default function ModelPredictions() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto w-full space-y-6 py-2">
+    <div className="page-ready max-w-4xl mx-auto w-full space-y-6 py-2">
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">

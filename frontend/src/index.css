@@ -130,6 +130,19 @@ details > summary::-webkit-details-marker {
   display: none;
 }
 
+.page-ready {
+  animation: page-ready-in 140ms ease-out both;
+}
+
+@keyframes page-ready-in {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes guide-row-arrive {
   from {
     opacity: 0;
@@ -233,5 +246,9 @@ details > summary::-webkit-details-marker {
   .guide-reveal.is-visible .guide-model-bar {
     width: var(--guide-width);
     transition: none;
+  }
+
+  .page-ready {
+    animation: none;
   }
 }

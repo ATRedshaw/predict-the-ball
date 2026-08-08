@@ -1,7 +1,8 @@
-import { useState, useEffect, useLayoutEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
-import { usePageLoading } from '../components/PageLoadingContext'
+import { useSmoothLoading } from '../useSmoothLoading'
+import { StandingsSkeleton } from '../components/PageSkeletons'
 
 // ---------------------------------------------------------------------------
 // Zone divider
@@ -43,16 +44,12 @@ function FormBadge({ result }) {
 // ---------------------------------------------------------------------------
 
 export default function Standings() {
-  const { setPageLoading } = usePageLoading()
+  const [loading,   setLoading]   = useState(true)
   const [season,    setSeason]    = useState(null)
   const [standings, setStandings] = useState([])
   const [updatedAt, setUpdatedAt] = useState(null)
   const [error,     setError]     = useState(null)
   const [kickedOff, setKickedOff] = useState(false)
-
-  useLayoutEffect(() => {
-    setPageLoading(true)
-  }, [])
 
   useEffect(() => {
     async function load() {
@@ -71,11 +68,15 @@ export default function Standings() {
       } catch (err) {
         setError(err.message)
       } finally {
-        setPageLoading(false)
+        setLoading(false)
       }
     }
     load()
-  }, [setPageLoading])
+  }, [])
+
+  const showSkeleton = useSmoothLoading(loading)
+
+  if (loading || showSkeleton) return <StandingsSkeleton visible={showSkeleton} />
 
   if (error) {
     return (
@@ -93,7 +94,7 @@ export default function Standings() {
     : null
 
   return (
-    <div className="max-w-4xl mx-auto w-full px-4 py-6">
+    <div className="page-ready max-w-4xl mx-auto w-full px-4 py-6">
 
       {/* ── Header ── */}
       <div className="mb-6 flex items-start justify-between flex-wrap gap-3">

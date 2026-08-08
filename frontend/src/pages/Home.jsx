@@ -1,8 +1,9 @@
-import { useState, useEffect, useLayoutEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
+import { useSmoothLoading } from '../useSmoothLoading'
 import DeadlineCountdown from '../components/DeadlineCountdown'
-import { usePageLoading } from '../components/PageLoadingContext'
+import { DashboardSkeleton } from '../components/PageSkeletons'
 
 // ---------------------------------------------------------------------------
 // Small shared primitives
@@ -395,17 +396,12 @@ function HistoryRow({ entry, expanded, onToggle }) {
 // ---------------------------------------------------------------------------
 
 export default function Home() {
-  const { setPageLoading } = usePageLoading()
   const [data,  setData]  = useState(null)
   const [error, setError] = useState(null)
   const [expandedSeason, setExpandedSeason] = useState(null)
   const [actualLookup, setActualLookup] = useState(null)
   const [actualStandingsFull, setActualStandingsFull] = useState(null)
   const [actualStandingsUpdatedAt, setActualStandingsUpdatedAt] = useState(null)
-
-  useLayoutEffect(() => {
-    setPageLoading(true)
-  }, [])
 
   useEffect(() => {
     async function load() {
@@ -426,12 +422,15 @@ export default function Home() {
         }
       } catch (err) {
         setError(err.message)
-      } finally {
-        setPageLoading(false)
       }
     }
     load()
-  }, [setPageLoading])
+  }, [])
+
+  const initialLoading = !data && !error
+  const showSkeleton = useSmoothLoading(initialLoading)
+
+  if (initialLoading || showSkeleton) return <DashboardSkeleton visible={showSkeleton} />
 
   if (error) {
     return (
@@ -440,8 +439,6 @@ export default function Home() {
       </div>
     )
   }
-
-  if (!data) return null
 
   const {
     user,
@@ -467,7 +464,7 @@ export default function Home() {
   const currentLeagues    = current?.leagues ?? []
 
   return (
-    <div className="max-w-4xl mx-auto w-full space-y-6 py-2">
+    <div className="page-ready max-w-4xl mx-auto w-full space-y-6 py-2">
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">

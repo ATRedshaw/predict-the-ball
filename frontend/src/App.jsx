@@ -1,11 +1,12 @@
-import { useState, useEffect, useLayoutEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from './api'
 import { useAuth } from './authState'
-import { usePageLoading } from './components/PageLoadingContext'
+import { useSmoothLoading } from './useSmoothLoading'
+import { LandingPageSkeleton } from './components/PageSkeletons'
 
 function App() {
-  const { setPageLoading } = usePageLoading()
+  const [loading,   setLoading]   = useState(true)
   const [season,    setSeason]    = useState(null)
   const [standings, setStandings] = useState([])
   const [updatedAt, setUpdatedAt] = useState(null)
@@ -13,10 +14,6 @@ function App() {
 
   const { accessToken } = useAuth()
   const isLoggedIn = !!accessToken
-
-  useLayoutEffect(() => {
-    setPageLoading(true)
-  }, [setPageLoading])
 
   useEffect(() => {
     async function load() {
@@ -33,11 +30,15 @@ function App() {
       } catch {
         // Non-fatal — placeholders remain
       } finally {
-        setPageLoading(false)
+        setLoading(false)
       }
     }
     load()
-  }, [setPageLoading])
+  }, [])
+
+  const showSkeleton = useSmoothLoading(loading)
+
+  if (loading || showSkeleton) return <LandingPageSkeleton visible={showSkeleton} />
 
   const refreshedLabel = updatedAt
     ? new Date(updatedAt).toLocaleString('en-GB', {
@@ -64,7 +65,7 @@ function App() {
   return (
     <>
       {/* ── Bento grid ── */}
-      <div className="grid grid-cols-12 grid-rows-[auto] gap-4 max-w-7xl mx-auto">
+      <div className="page-ready grid grid-cols-12 grid-rows-[auto] gap-4 max-w-7xl mx-auto">
 
         {/* Hero — spans 8 cols */}
         <div className="col-span-12 md:col-span-8 bg-teal rounded-2xl p-8 md:p-10 flex flex-col justify-between min-h-64 relative overflow-hidden">

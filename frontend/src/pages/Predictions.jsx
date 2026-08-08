@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useBeforeUnload, useBlocker } from 'react-router-dom'
 import {
   DndContext,
@@ -16,8 +16,9 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { api } from '../api'
+import { useSmoothLoading } from '../useSmoothLoading'
 import DeadlineCountdown from '../components/DeadlineCountdown'
-import { usePageLoading } from '../components/PageLoadingContext'
+import { PredictionsSkeleton } from '../components/PageSkeletons'
 
 function ArrowIcon({ direction }) {
   return (
@@ -248,7 +249,6 @@ function UnsavedChangesModal({ onStay, onLeave }) {
  *  error      — something went wrong
  */
 export default function Predictions() {
-  const { setPageLoading } = usePageLoading()
   const [pageState, setPageState]   = useState('loading')
   const [season,    setSeason]      = useState(null)
   const [deadline,  setDeadline]    = useState(null)
@@ -276,10 +276,6 @@ export default function Predictions() {
     event.preventDefault()
     event.returnValue = ''
   }, [dirty]))
-
-  useLayoutEffect(() => {
-    setPageLoading(true)
-  }, [setPageLoading])
 
   // ── fetch all data on mount ──────────────────────────────────────────────
   useEffect(() => {
@@ -321,13 +317,14 @@ export default function Predictions() {
       } catch (err) {
         console.error(err)
         setPageState('error')
-      } finally {
-        setPageLoading(false)
       }
     }
 
     load()
-  }, [setPageLoading])
+  }, [])
+
+  const initialLoading = pageState === 'loading'
+  const showSkeleton = useSmoothLoading(initialLoading)
 
   // ── drag end ─────────────────────────────────────────────────────────────
   const handleDragEnd = useCallback(({ active, over }) => {
@@ -373,6 +370,8 @@ export default function Predictions() {
 
   // ── render states ────────────────────────────────────────────────────────
 
+  if (initialLoading || showSkeleton) return <PredictionsSkeleton visible={showSkeleton} />
+
   if (pageState === 'error') {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -414,7 +413,7 @@ export default function Predictions() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto w-full px-4 py-6">
+    <div className="page-ready max-w-2xl mx-auto w-full px-4 py-6">
 
       {/* ── header ── */}
       <div className="mb-6">

@@ -1,7 +1,8 @@
-import { useState, useEffect, useLayoutEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
-import { usePageLoading } from '../components/PageLoadingContext'
+import { useSmoothLoading } from '../useSmoothLoading'
+import { LeagueDetailSkeleton, LeaguesSkeleton } from '../components/PageSkeletons'
 
 // ---------------------------------------------------------------------------
 // Small shared primitives
@@ -290,7 +291,7 @@ function MemberPredictionView({ member, season, kickedOff, currentUserId, onBack
   ].sort((a, b) => b.season.localeCompare(a.season))
 
   return (
-    <div className="max-w-2xl mx-auto w-full px-4 py-6">
+    <div className="page-ready max-w-2xl mx-auto w-full px-4 py-6">
       <button
         onClick={onBack}
         className="text-teal-muted text-sm hover:text-white transition-colors mb-5 flex items-center gap-1"
@@ -451,7 +452,7 @@ function MemberPredictionView({ member, season, kickedOff, currentUserId, onBack
 // League detail view
 // ---------------------------------------------------------------------------
 
-function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDeleted }) {
+function LeagueDetail({ leagueId, currentUserId, currentSeason, initialSkeletonVisible, onBack, onDeleted }) {
   const [league, setLeague]           = useState(null)
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState('')
@@ -460,6 +461,7 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
   const [modal, setModal]             = useState(null) // 'transfer' | 'confirm-leave' | 'confirm-delete' | 'confirm-kick'
   const [kickTarget, setKickTarget]   = useState(null)
   const [viewingMember, setViewingMember]   = useState(null)
+  const showSkeleton = useSmoothLoading(loading, 180, 300, initialSkeletonVisible)
 
   const load = useCallback(async () => {
     try {
@@ -540,12 +542,8 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <span className="text-white/30 text-sm">Loading…</span>
-      </div>
-    )
+  if (loading || showSkeleton) {
+    return <LeagueDetailSkeleton visible={showSkeleton} />
   }
 
   if (error || !league) {
@@ -597,7 +595,7 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, onBack, onDelete
   }
 
   return (
-    <div className="max-w-2xl mx-auto w-full px-4 py-6">
+    <div className="page-ready max-w-2xl mx-auto w-full px-4 py-6">
 
       {/* back */}
       <button
@@ -909,7 +907,7 @@ function LeagueList({ leagues, season, inviteCode, onDismissInvite, onSelect, on
     : leagues
 
   return (
-    <div className="max-w-2xl mx-auto w-full px-4 py-6">
+    <div className="page-ready max-w-2xl mx-auto w-full px-4 py-6">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
         <div>
           <h1 className="text-white text-2xl font-bold leading-tight">Leagues</h1>
@@ -1028,7 +1026,6 @@ function LeagueList({ leagues, season, inviteCode, onDismissInvite, onSelect, on
 // ---------------------------------------------------------------------------
 
 export default function Leagues() {
-  const { setPageLoading } = usePageLoading()
   const location = useLocation()
   const navigate = useNavigate()
   const inviteCode = (new URLSearchParams(location.search).get('invite') ?? '').trim().toUpperCase()
@@ -1037,10 +1034,8 @@ export default function Leagues() {
   const [currentUserId, setCurrentUserId] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
   const [pageState, setPageState]   = useState('loading') // 'loading' | 'list' | 'detail' | 'error'
-
-  useLayoutEffect(() => {
-    setPageLoading(true)
-  }, [])
+  const initialLoading = pageState === 'loading'
+  const showSkeleton = useSmoothLoading(initialLoading)
 
   useEffect(() => {
     async function load() {
@@ -1067,12 +1062,10 @@ export default function Leagues() {
       } catch (err) {
         console.error(err)
         setPageState('error')
-      } finally {
-        setPageLoading(false)
       }
     }
     load()
-  }, [setPageLoading])
+  }, [])
 
   function handleCreated(league) {
     // Optimistically add and open the new league
@@ -1103,12 +1096,21 @@ export default function Leagues() {
     setPageState('list')
   }
 
-  if (pageState === 'loading') {
+  if (pageState === 'detail' && selectedId != null) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <span className="text-white/30 text-sm">Loading…</span>
-      </div>
+      <LeagueDetail
+        leagueId={selectedId}
+        currentUserId={currentUserId}
+        currentSeason={season}
+        initialSkeletonVisible={showSkeleton}
+        onBack={handleBack}
+        onDeleted={handleDeleted}
+      />
     )
+  }
+
+  if (initialLoading || showSkeleton) {
+    return <LeaguesSkeleton visible={showSkeleton} />
   }
 
   if (pageState === 'error') {
@@ -1116,18 +1118,6 @@ export default function Leagues() {
       <div className="flex-1 flex items-center justify-center">
         <p className="text-red-400 text-sm">Something went wrong. Try refreshing.</p>
       </div>
-    )
-  }
-
-  if (pageState === 'detail' && selectedId != null) {
-    return (
-      <LeagueDetail
-        leagueId={selectedId}
-        currentUserId={currentUserId}
-        currentSeason={season}
-        onBack={handleBack}
-        onDeleted={handleDeleted}
-      />
     )
   }
 

@@ -1,6 +1,7 @@
-import { useState, useEffect, useLayoutEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { api } from '../api'
-import { usePageLoading } from '../components/PageLoadingContext'
+import { useSmoothLoading } from '../useSmoothLoading'
+import { AdminSkeleton } from '../components/PageSkeletons'
 
 // ─── Tiny shared components ────────────────────────────────────────────────────
 
@@ -30,8 +31,7 @@ function Feedback({ type, text }) {
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
 export default function Admin() {
-  const { setPageLoading } = usePageLoading()
-
+  const [loading, setLoading] = useState(true)
   const [season,  setSeason]  = useState(null)
   const [users,   setUsers]   = useState([])
   const [deductions, setDeductions] = useState([])
@@ -50,10 +50,6 @@ export default function Admin() {
   // Users search
   const [userSearch, setUserSearch] = useState('')
 
-  useLayoutEffect(() => {
-    setPageLoading(true)
-  }, [])
-
   useEffect(() => {
     async function load() {
       try {
@@ -68,11 +64,13 @@ export default function Admin() {
       } catch {
         // Non-fatal
       } finally {
-        setPageLoading(false)
+        setLoading(false)
       }
     }
     load()
-  }, [setPageLoading])
+  }, [])
+
+  const showSkeleton = useSmoothLoading(loading)
 
   async function handleAddDeduction(e) {
     e.preventDefault()
@@ -129,6 +127,8 @@ export default function Admin() {
     }
   }
 
+  if (loading || showSkeleton) return <AdminSkeleton visible={showSkeleton} />
+
   const filteredUsers = users.filter(u => {
     const q = userSearch.toLowerCase()
     return (
@@ -140,7 +140,7 @@ export default function Admin() {
   })
 
   return (
-    <div className="max-w-5xl mx-auto w-full py-4 space-y-4">
+    <div className="page-ready max-w-5xl mx-auto w-full py-4 space-y-4">
 
       {/* Header */}
       <div className="flex items-center justify-between">
