@@ -45,7 +45,7 @@ def _validate_standings(standings: list, season: str) -> str | None:
 def submit_prediction(season: str):
     """Submit a predicted final standings for the given season.
 
-    Only allowed before the season deadline (first kick-off). One prediction
+    Only allowed before the season deadline (90 minutes before the opening fixture). One prediction
     per user per season — applies to all leagues the user is in.
 
     Args:

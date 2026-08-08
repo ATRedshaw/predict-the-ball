@@ -12,7 +12,7 @@ export default function Terms() {
       <Section title="The service">
         <p>
           PredictTheBall is a free-to-use Premier League prediction game. Before each
-          season kicks off, a predicted final table can be submitted. Scores are
+          season's prediction deadline, a predicted final table can be submitted. Scores are
           calculated against the live standings throughout the season and updated as
           results come in. Private leagues allow users to compete against others using
           a shared invite code.
@@ -50,8 +50,9 @@ export default function Terms() {
 
       <Section title="Predictions and leagues">
         <p>
-          Predictions can be submitted and updated at any time before a season's deadline.
-          Once a season has kicked off and the deadline has passed, submissions are locked.
+          Predictions can be submitted and updated at any time before a season's deadline,
+          which is 90 minutes before the opening fixture. Once the deadline has passed,
+          submissions are locked.
         </p>
         <p className="mt-3">
           Private leagues are identified by a short invite code. Anyone with the code can

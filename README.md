@@ -10,7 +10,7 @@
 
 ## About the project
 
-PredictTheBall is a full-stack Premier League prediction game. Before the season begins, players rank all 20 clubs in their expected finishing order. Once the first match kicks off, predictions are locked and scored against the live table throughout the season.
+PredictTheBall is a full-stack Premier League prediction game. Before the season begins, players rank all 20 clubs in their expected finishing order. Predictions lock 90 minutes before the opening fixture and are scored against the live table throughout the season.
 
 The application also runs its own Elo-based forecasting model, providing a data-driven benchmark alongside the predictions made by players.
 
@@ -18,7 +18,7 @@ This repository is a showcase of the application and its implementation. The liv
 
 ## How it works
 
-1. Rank every Premier League club before the first kick-off.
+1. Rank every Premier League club before the deadline, 90 minutes before the opening fixture.
 2. Create or join private leagues using an invite code.
 3. Follow the live table as scores and rankings update during the season.
 4. Compare predictions with friends, the global leaderboard and the forecasting model.

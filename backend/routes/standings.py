@@ -169,7 +169,7 @@ def delete_deduction(season: str, deduction_id: int):
 
 @standings_bp.get("/<string:season>/deadline")
 def get_deadline(season: str):
-    """Return the first kick-off time for the season and whether it has passed."""
+    """Return the prediction deadline for the season and whether it has passed."""
     kicked_off = has_season_kicked_off(season)
     first_kickoff = get_first_kickoff(season)
     return jsonify({
