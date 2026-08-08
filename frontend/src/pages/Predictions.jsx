@@ -19,16 +19,30 @@ import { api } from '../api'
 import DeadlineCountdown from '../components/DeadlineCountdown'
 import { usePageLoading } from '../components/PageLoadingContext'
 
+function ArrowIcon({ direction }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="h-3.5 w-3.5"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path
+        d={direction === 'up' ? 'm5 12 5-5 5 5' : 'm5 8 5 5 5-5'}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Sortable row
 // ---------------------------------------------------------------------------
 
-/**
- * A single draggable team row in the predictions list.
- *
- * @param {{ id: string, position: number, name: string, disabled: boolean }} props
- */
-function SortableTeamRow({ id, position, name, disabled }) {
+function SortableTeamRow({ id, position, name, disabled, isFirst, isLast, onMove }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id, disabled })
 
@@ -71,18 +85,41 @@ function SortableTeamRow({ id, position, name, disabled }) {
       </span>
 
       {/* position badge for top 4 / relegation zone */}
-      <span className={`text-white text-sm flex-1 ${disabled ? 'opacity-60' : ''}`}>
+      <span className={`min-w-0 flex-1 truncate text-sm text-white ${disabled ? 'opacity-60' : ''}`}>
         {name}
       </span>
 
       {position === 1 && (
-        <span className="text-[10px] text-yellow-400/50 uppercase tracking-wider">
+        <span className="hidden text-[10px] uppercase tracking-wider text-yellow-400/50 sm:inline">
           Champion
         </span>
       )}
       {position >= 18 && (
-        <span className="text-[10px] text-red-400/60 uppercase tracking-wider">
+        <span className="hidden text-[10px] uppercase tracking-wider text-red-400/60 sm:inline">
           Relegated
+        </span>
+      )}
+
+      {!disabled && (
+        <span className="flex shrink-0 gap-1">
+          <button
+            type="button"
+            onClick={() => onMove(id, -1)}
+            disabled={isFirst}
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-white/10 text-white/45 transition-colors hover:bg-white/5 hover:text-white focus:outline-none focus:ring-2 focus:ring-teal disabled:cursor-not-allowed disabled:opacity-15"
+            aria-label={`Move ${name} up`}
+          >
+            <ArrowIcon direction="up" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onMove(id, 1)}
+            disabled={isLast}
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-white/10 text-white/45 transition-colors hover:bg-white/5 hover:text-white focus:outline-none focus:ring-2 focus:ring-teal disabled:cursor-not-allowed disabled:opacity-15"
+            aria-label={`Move ${name} down`}
+          >
+            <ArrowIcon direction="down" />
+          </button>
         </span>
       )}
     </div>
@@ -242,7 +279,7 @@ export default function Predictions() {
 
   useLayoutEffect(() => {
     setPageLoading(true)
-  }, [])
+  }, [setPageLoading])
 
   // ── fetch all data on mount ──────────────────────────────────────────────
   useEffect(() => {
@@ -303,6 +340,17 @@ export default function Predictions() {
     setSaveOk(false)
   }, [])
 
+  const handleMove = useCallback((team, direction) => {
+    setTeams(prev => {
+      const currentIndex = prev.indexOf(team)
+      const nextIndex = currentIndex + direction
+
+      if (currentIndex === -1 || nextIndex < 0 || nextIndex >= prev.length) return prev
+      return arrayMove(prev, currentIndex, nextIndex)
+    })
+    setSaveOk(false)
+  }, [])
+
   // ── save ─────────────────────────────────────────────────────────────────
   async function handleSave() {
     setSaving(true)
@@ -356,6 +404,9 @@ export default function Predictions() {
             position={pos}
             name={name}
             disabled={!isEditable}
+            isFirst={idx === 0}
+            isLast={idx === teams.length - 1}
+            onMove={handleMove}
           />
         </div>
       )
@@ -399,7 +450,7 @@ export default function Predictions() {
 
         {isEditable && (
           <p className="text-white/40 text-xs mt-1">
-            Drag teams to set your predicted final order. Lowest total error wins.
+            Drag teams or use the arrows to set your predicted final order. Lowest total error wins.
           </p>
         )}
       </div>
