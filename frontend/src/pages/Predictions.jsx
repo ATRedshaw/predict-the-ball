@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useBeforeUnload, useBlocker } from 'react-router-dom'
 import {
   DndContext,
@@ -177,7 +178,7 @@ function UnsavedChangesModal({ onStay, onLeave }) {
     }
   }, [onStay])
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center sm:p-6">
       <div
         ref={modalRef}
@@ -233,7 +234,8 @@ function UnsavedChangesModal({ onStay, onLeave }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
