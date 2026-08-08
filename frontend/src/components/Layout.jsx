@@ -23,7 +23,7 @@ const PATH_TO_PAGE = {
 
 export default function Layout() {
   const { pathname } = useLocation()
-  const { accessToken, user } = useAuth()
+  const { accessToken, user, ready } = useAuth()
   const isLoggedIn   = !!accessToken
   const isAdmin      = user?.is_admin === true
   const activePage   = PATH_TO_PAGE[pathname] ?? ''
@@ -38,7 +38,9 @@ export default function Layout() {
   return (
     <InstallPromptProvider>
       <div className="min-h-screen bg-jet p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6 font-sans flex flex-col">
-        <Navbar isLoggedIn={isLoggedIn} activePage={activePage} username={firstName} isAdmin={isAdmin} />
+        {ready && (
+          <Navbar isLoggedIn={isLoggedIn} activePage={activePage} username={firstName} isAdmin={isAdmin} />
+        )}
         <div className="flex-1 flex flex-col">
           <Outlet />
         </div>
