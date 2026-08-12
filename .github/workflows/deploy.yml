@@ -41,7 +41,12 @@ jobs:
             -o UserKnownHostsFile="$known_hosts_path" \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=3 \
-            "$VM_USER@$VM_HOST" 'bash -se' <<'REMOTE_SCRIPT'
+            "$VM_USER@$VM_HOST" \
+            'umask 077
+          deploy_script=$(mktemp)
+          trap "rm -f \"$deploy_script\"" EXIT
+          cat > "$deploy_script"
+          bash "$deploy_script"' <<'REMOTE_SCRIPT'
           set -euo pipefail
 
           cd /home/ubuntu/predict-the-ball
@@ -53,7 +58,7 @@ jobs:
 
           cd /home/ubuntu/predict-the-ball
           docker compose build predict-the-ball
-          docker compose run --rm predict-the-ball flask --app app:create_app db upgrade
+          docker compose run --rm --interactive=false predict-the-ball flask --app app:create_app db upgrade
           docker compose up -d predict-the-ball
 
           sudo mkdir -p /var/www/predict-the-ball
