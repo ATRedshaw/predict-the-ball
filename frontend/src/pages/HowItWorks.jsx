@@ -795,7 +795,7 @@ function HowItWorks() {
 
             <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               {[
-                ['Create', 'Name a league and receive a six-character invite code.'],
+                ['Create', 'Name a league and receive an eight-character invite code.'],
                 ['Invite', 'Copy the code or share a direct invitation link with friends.'],
                 ['Join', 'Enter another league’s code. The existing seasonal prediction is used automatically.'],
                 ['Compare', 'Open member tables after the deadline and follow league and global rankings.'],

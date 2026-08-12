@@ -154,8 +154,8 @@ function JoinLeagueModal({ initialCode = '', onClose, onJoin }) {
             type="text"
             value={code}
             onChange={e => setCode(e.target.value.toUpperCase())}
-            placeholder="e.g. X7K2PQ"
-            maxLength={6}
+            placeholder="e.g. A7B2Q9Z4"
+            maxLength={8}
             className="w-full bg-jet border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm font-mono tracking-widest placeholder-white/20 focus:outline-none focus:border-teal/50 transition-colors uppercase"
           />
         </div>

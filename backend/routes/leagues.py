@@ -107,7 +107,7 @@ def create_league():
     """Create a new league for the authenticated user.
 
     Automatically assigns the creator the ``'owner'`` role and generates a
-    unique 6-character invite code.
+    unique 8-character invite code.
 
     Request body (JSON):
         name (str): Display name for the league.
@@ -246,7 +246,7 @@ def join_league():
     """Join a league using its invite code.
 
     Request body (JSON):
-        code (str): The 6-character league invite code.
+        code (str): The 8-character league invite code.
 
     Returns:
         201 with basic league info, 404 for an invalid code, 409 if already a member.
