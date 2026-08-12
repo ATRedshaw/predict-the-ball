@@ -26,7 +26,7 @@ export default function Layout() {
   const { accessToken, user, ready } = useAuth()
   const isLoggedIn   = !!accessToken
   const isAdmin      = user?.is_admin === true
-  const activePage   = PATH_TO_PAGE[pathname] ?? ''
+  const activePage   = pathname.startsWith('/leagues/') ? 'leagues' : (PATH_TO_PAGE[pathname] ?? '')
   const firstName    = user?.first_name ?? ''
 
   useEffect(() => {

@@ -52,6 +52,7 @@ const router = createBrowserRouter(
         <Route path="/predictions"        element={<Predictions />} />
         <Route path="/standings"          element={<Standings />} />
         <Route path="/leagues"            element={<Leagues />} />
+        <Route path="/leagues/:leagueId"  element={<Leagues />} />
         <Route path="/model-predictions"  element={<ModelPredictions />} />
         <Route path="/settings"           element={<Settings />} />
       </Route>

@@ -206,7 +206,7 @@ def get_league(league_id: int):
         league_id: ID of the league to fetch.
 
     Returns:
-        League object with members array, or 403/404 as appropriate.
+        League object with members array, or 404 when unavailable.
     """
     user_id = get_jwt_identity()
     league = db.session.get(League, league_id)
@@ -214,7 +214,7 @@ def get_league(league_id: int):
         return jsonify({"error": "League not found"}), 404
 
     if _get_membership(league_id, user_id) is None:
-        return jsonify({"error": "You are not a member of this league"}), 403
+        return jsonify({"error": "League not found"}), 404
 
     kicked_off = has_season_kicked_off(league.season)
     members = LeagueMember.query.filter_by(league_id=league_id).all()
@@ -310,7 +310,7 @@ def leave_league(league_id: int):
 
     membership = _get_membership(league_id, user_id)
     if membership is None:
-        return jsonify({"error": "You are not a member of this league"}), 403
+        return jsonify({"error": "League not found"}), 404
 
     try:
         current_season = get_latest_epl_season()
@@ -351,7 +351,9 @@ def delete_league(league_id: int):
         return jsonify({"error": "League not found"}), 404
 
     membership = _get_membership(league_id, user_id)
-    if membership is None or membership.role != "owner":
+    if membership is None:
+        return jsonify({"error": "League not found"}), 404
+    if membership.role != "owner":
         return jsonify({"error": "Owner access required"}), 403
 
     try:
@@ -379,7 +381,7 @@ def get_members(league_id: int):
         league_id: ID of the league.
 
     Returns:
-        List of member objects, or 403/404.
+        List of member objects, or 404 when unavailable.
     """
     user_id = get_jwt_identity()
     league = db.session.get(League, league_id)
@@ -387,7 +389,7 @@ def get_members(league_id: int):
         return jsonify({"error": "League not found"}), 404
 
     if _get_membership(league_id, user_id) is None:
-        return jsonify({"error": "You are not a member of this league"}), 403
+        return jsonify({"error": "League not found"}), 404
 
     kicked_off = has_season_kicked_off(league.season)
     members = LeagueMember.query.filter_by(league_id=league_id).all()
@@ -412,7 +414,9 @@ def remove_member(league_id: int, target_user_id: int):
         return jsonify({"error": "League not found"}), 404
 
     membership = _get_membership(league_id, user_id)
-    if membership is None or membership.role != "owner":
+    if membership is None:
+        return jsonify({"error": "League not found"}), 404
+    if membership.role != "owner":
         return jsonify({"error": "Owner access required"}), 403
 
     try:
@@ -455,7 +459,9 @@ def transfer_ownership(league_id: int):
         return jsonify({"error": "League not found"}), 404
 
     membership = _get_membership(league_id, user_id)
-    if membership is None or membership.role != "owner":
+    if membership is None:
+        return jsonify({"error": "League not found"}), 404
+    if membership.role != "owner":
         return jsonify({"error": "Owner access required"}), 403
 
     try:

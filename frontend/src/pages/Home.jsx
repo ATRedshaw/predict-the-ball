@@ -241,7 +241,7 @@ function LeagueCard({ league, kickedOff }) {
   const { id, name, member_count, role, rank } = league
   return (
     <Link
-      to={`/leagues?id=${id}`}
+      to={`/leagues/${id}`}
       className="bg-jet-dark rounded-2xl px-5 py-4 flex items-center justify-between hover:bg-jet transition-colors"
     >
       <div className="min-w-0">

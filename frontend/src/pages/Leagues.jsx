@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { useSmoothLoading } from '../useSmoothLoading'
 import { LeagueDetailSkeleton, LeaguesSkeleton } from '../components/PageSkeletons'
@@ -879,7 +879,7 @@ function LeagueDetail({ leagueId, currentUserId, currentSeason, initialSkeletonV
 // League list (main view)
 // ---------------------------------------------------------------------------
 
-function LeagueList({ leagues, season, inviteCode, onDismissInvite, onSelect, onCreated, onJoined }) {
+function LeagueList({ leagues, season, inviteCode, onDismissInvite, onCreated, onJoined }) {
   const [modal, setModal] = useState(inviteCode ? 'join' : null) // 'create' | 'join'
   const activeModal = inviteCode ? 'join' : modal
 
@@ -980,10 +980,10 @@ function LeagueList({ leagues, season, inviteCode, onDismissInvite, onSelect, on
       ) : (
         <div className="space-y-3">
           {visibleLeagues.map(league => (
-            <button
+            <Link
               key={league.id}
-              onClick={() => onSelect(league.id)}
-              className="w-full bg-jet-dark hover:bg-jet rounded-2xl p-4 text-left transition-colors group"
+              to={`/leagues/${league.id}`}
+              className="block w-full bg-jet-dark hover:bg-jet rounded-2xl p-4 text-left transition-colors group"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -996,7 +996,7 @@ function LeagueList({ leagues, season, inviteCode, onDismissInvite, onSelect, on
                   <span className="text-white/20 group-hover:text-white/50 transition-colors text-sm">→</span>
                 </div>
               </div>
-            </button>
+            </Link>
           ))}
         </div>
       )}
@@ -1026,16 +1026,23 @@ function LeagueList({ leagues, season, inviteCode, onDismissInvite, onSelect, on
 // ---------------------------------------------------------------------------
 
 export default function Leagues() {
+  const { leagueId } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const inviteCode = (new URLSearchParams(location.search).get('invite') ?? '').trim().toUpperCase()
+  const searchParams = new URLSearchParams(location.search)
+  const inviteCode = (searchParams.get('invite') ?? '').trim().toUpperCase()
+  const legacyIdParam = searchParams.get('id')
+  const routeLeagueId = leagueId && /^[1-9]\d*$/.test(leagueId) ? Number(leagueId) : null
+  const legacyLeagueId = legacyIdParam && /^[1-9]\d*$/.test(legacyIdParam) ? Number(legacyIdParam) : null
   const [leagues, setLeagues]       = useState([])
   const [season, setSeason]         = useState(null)
   const [currentUserId, setCurrentUserId] = useState(null)
-  const [selectedId, setSelectedId] = useState(null)
-  const [pageState, setPageState]   = useState('loading') // 'loading' | 'list' | 'detail' | 'error'
+  const [pageState, setPageState]   = useState('loading') // 'loading' | 'ready' | 'error'
   const initialLoading = pageState === 'loading'
   const showSkeleton = useSmoothLoading(initialLoading)
+  const selectedId = routeLeagueId && leagues.some(league => league.id === routeLeagueId)
+    ? routeLeagueId
+    : null
 
   useEffect(() => {
     async function load() {
@@ -1048,17 +1055,7 @@ export default function Leagues() {
         setSeason(s)
         setLeagues(leagueList)
         setCurrentUserId(me.id)
-
-        const params = new URLSearchParams(location.search)
-        const targetId = Number(params.get('id'))
-        if (params.get('invite')) {
-          setPageState('list')
-        } else if (targetId && leagueList.some(l => l.id === targetId)) {
-          setSelectedId(targetId)
-          setPageState('detail')
-        } else {
-          setPageState('list')
-        }
+        setPageState('ready')
       } catch (err) {
         console.error(err)
         setPageState('error')
@@ -1067,36 +1064,44 @@ export default function Leagues() {
     load()
   }, [])
 
+  useEffect(() => {
+    if (pageState !== 'ready') return
+
+    if (leagueId !== undefined && selectedId == null) {
+      navigate('/leagues', { replace: true })
+      return
+    }
+
+    if (!inviteCode && legacyIdParam !== null) {
+      const legacyLeagueExists = legacyLeagueId != null
+        && leagues.some(league => league.id === legacyLeagueId)
+      navigate(legacyLeagueExists ? `/leagues/${legacyLeagueId}` : '/leagues', { replace: true })
+    }
+  }, [inviteCode, leagueId, leagues, legacyIdParam, legacyLeagueId, navigate, pageState, selectedId])
+
   function handleCreated(league) {
-    // Optimistically add and open the new league
     setLeagues(prev => [...prev, { ...league, role: 'owner', member_count: 1 }])
-    setSelectedId(league.id)
-    setPageState('detail')
+    navigate(`/leagues/${league.id}`)
   }
 
   function handleJoined(league) {
     setLeagues(prev => [...prev, { ...league, role: 'member', member_count: 1 }])
-    setSelectedId(league.id)
-    setPageState('detail')
-    navigate(`/leagues?id=${league.id}`, { replace: true })
+    navigate(`/leagues/${league.id}`, { replace: true })
   }
 
   function handleBack(refetch = false) {
-    setSelectedId(null)
-    setPageState('list')
+    navigate('/leagues', { replace: true })
     if (refetch) {
-      // User left a league — refresh the list
       api.get('/api/leagues/').then(setLeagues).catch(() => {})
     }
   }
 
   function handleDeleted(leagueId) {
     setLeagues(prev => prev.filter(l => l.id !== leagueId))
-    setSelectedId(null)
-    setPageState('list')
+    navigate('/leagues', { replace: true })
   }
 
-  if (pageState === 'detail' && selectedId != null) {
+  if (pageState === 'ready' && selectedId != null) {
     return (
       <LeagueDetail
         leagueId={selectedId}
@@ -1121,13 +1126,16 @@ export default function Leagues() {
     )
   }
 
+  if (leagueId !== undefined || (!inviteCode && legacyIdParam !== null)) {
+    return <LeaguesSkeleton visible />
+  }
+
   return (
     <LeagueList
       leagues={leagues}
       season={season}
       inviteCode={inviteCode}
       onDismissInvite={() => navigate('/leagues', { replace: true })}
-      onSelect={id => { setSelectedId(id); setPageState('detail') }}
       onCreated={handleCreated}
       onJoined={handleJoined}
     />
