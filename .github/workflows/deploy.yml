@@ -11,29 +11,55 @@ jobs:
 
     steps:
       - name: Deploy production
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          script: |
-            set -e
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          VM_KNOWN_HOSTS: ${{ secrets.VM_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
 
-            cd /home/ubuntu/predict-the-ball
-            git pull --ff-only origin main
+          : "${VM_HOST:?VM_HOST secret is required}"
+          : "${VM_USER:?VM_USER secret is required}"
+          : "${VM_SSH_KEY:?VM_SSH_KEY secret is required}"
+          : "${VM_KNOWN_HOSTS:?VM_KNOWN_HOSTS secret is required}"
 
-            cd frontend
-            npm ci
-            VITE_API_URL=https://api.predict-the-ball.atredshaw.com npm run build
+          key_path="$RUNNER_TEMP/deploy_key"
+          known_hosts_path="$RUNNER_TEMP/known_hosts"
+          trap 'rm -f "$key_path" "$known_hosts_path"' EXIT
 
-            cd /home/ubuntu/predict-the-ball
-            docker compose build predict-the-ball
-            docker compose run --rm predict-the-ball flask --app app:create_app db upgrade
-            docker compose up -d predict-the-ball
+          umask 077
+          printf '%s\n' "$VM_SSH_KEY" | tr -d '\r' > "$key_path"
+          printf '%s\n' "$VM_KNOWN_HOSTS" | tr -d '\r' > "$known_hosts_path"
 
-            sudo mkdir -p /var/www/predict-the-ball
-            sudo rsync -a --delete frontend/dist/ /var/www/predict-the-ball/
-            sudo chown -R www-data:www-data /var/www/predict-the-ball
+          ssh \
+            -i "$key_path" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=30 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$known_hosts_path" \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=3 \
+            "$VM_USER@$VM_HOST" 'bash -se' <<'REMOTE_SCRIPT'
+          set -euo pipefail
 
-            sudo nginx -t
-            sudo systemctl reload nginx
+          cd /home/ubuntu/predict-the-ball
+          git pull --ff-only origin main
+
+          cd frontend
+          npm ci
+          VITE_API_URL=https://api.predict-the-ball.atredshaw.com npm run build
+
+          cd /home/ubuntu/predict-the-ball
+          docker compose build predict-the-ball
+          docker compose run --rm predict-the-ball flask --app app:create_app db upgrade
+          docker compose up -d predict-the-ball
+
+          sudo mkdir -p /var/www/predict-the-ball
+          sudo rsync -a --delete frontend/dist/ /var/www/predict-the-ball/
+          sudo chown -R www-data:www-data /var/www/predict-the-ball
+
+          sudo nginx -t
+          sudo systemctl reload nginx
+          REMOTE_SCRIPT
