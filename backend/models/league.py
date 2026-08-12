@@ -1,5 +1,6 @@
 import secrets
 import string
+import uuid
 from extensions import db
 from datetime import datetime, timezone
 
@@ -20,6 +21,13 @@ class League(db.Model):
     __tablename__ = "leagues"
 
     id = db.Column(db.Integer, primary_key=True)
+    public_id = db.Column(
+        db.String(36),
+        unique=True,
+        nullable=False,
+        default=lambda: str(uuid.uuid4()),
+        index=True,
+    )
     name = db.Column(db.String(100), nullable=False)
     # Short unique invite code, e.g. "A7B2Q9Z4"
     code = db.Column(db.String(10), unique=True, nullable=False, default=generate_invite_code)

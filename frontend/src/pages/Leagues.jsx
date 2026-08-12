@@ -4,6 +4,8 @@ import { api } from '../api'
 import { useSmoothLoading } from '../useSmoothLoading'
 import { LeagueDetailSkeleton, LeaguesSkeleton } from '../components/PageSkeletons'
 
+const PUBLIC_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 // ---------------------------------------------------------------------------
 // Small shared primitives
 // ---------------------------------------------------------------------------
@@ -1031,9 +1033,9 @@ export default function Leagues() {
   const navigate = useNavigate()
   const searchParams = new URLSearchParams(location.search)
   const inviteCode = (searchParams.get('invite') ?? '').trim().toUpperCase()
-  const legacyIdParam = searchParams.get('id')
-  const routeLeagueId = leagueId && /^[1-9]\d*$/.test(leagueId) ? Number(leagueId) : null
-  const legacyLeagueId = legacyIdParam && /^[1-9]\d*$/.test(legacyIdParam) ? Number(legacyIdParam) : null
+  const queryLeagueId = searchParams.get('id')
+  const routeLeagueId = leagueId && PUBLIC_ID_RE.test(leagueId) ? leagueId.toLowerCase() : null
+  const isLegacyRoute = leagueId !== undefined && /^[1-9]\d*$/.test(leagueId)
   const [leagues, setLeagues]       = useState([])
   const [season, setSeason]         = useState(null)
   const [currentUserId, setCurrentUserId] = useState(null)
@@ -1067,17 +1069,28 @@ export default function Leagues() {
   useEffect(() => {
     if (pageState !== 'ready') return
 
-    if (leagueId !== undefined && selectedId == null) {
-      navigate('/leagues', { replace: true })
+    if (!inviteCode && queryLeagueId !== null) {
+      const isValidQueryId = PUBLIC_ID_RE.test(queryLeagueId) || /^[1-9]\d*$/.test(queryLeagueId)
+      navigate(isValidQueryId ? `/leagues/${queryLeagueId.toLowerCase()}` : '/leagues', { replace: true })
       return
     }
 
-    if (!inviteCode && legacyIdParam !== null) {
-      const legacyLeagueExists = legacyLeagueId != null
-        && leagues.some(league => league.id === legacyLeagueId)
-      navigate(legacyLeagueExists ? `/leagues/${legacyLeagueId}` : '/leagues', { replace: true })
+    if (isLegacyRoute) {
+      let cancelled = false
+      api.get(`/api/leagues/${leagueId}`)
+        .then(league => {
+          if (!cancelled) navigate(`/leagues/${league.id}`, { replace: true })
+        })
+        .catch(() => {
+          if (!cancelled) navigate('/leagues', { replace: true })
+        })
+      return () => { cancelled = true }
     }
-  }, [inviteCode, leagueId, leagues, legacyIdParam, legacyLeagueId, navigate, pageState, selectedId])
+
+    if (leagueId !== undefined && selectedId == null) {
+      navigate('/leagues', { replace: true })
+    }
+  }, [inviteCode, isLegacyRoute, leagueId, navigate, pageState, queryLeagueId, selectedId])
 
   function handleCreated(league) {
     setLeagues(prev => [...prev, { ...league, role: 'owner', member_count: 1 }])
@@ -1126,7 +1139,7 @@ export default function Leagues() {
     )
   }
 
-  if (leagueId !== undefined || (!inviteCode && legacyIdParam !== null)) {
+  if (leagueId !== undefined || (!inviteCode && queryLeagueId !== null)) {
     return <LeaguesSkeleton visible />
   }
 

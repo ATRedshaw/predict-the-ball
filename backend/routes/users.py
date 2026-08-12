@@ -123,7 +123,7 @@ def _season_summary(season: str, user_id: int, kicked_off: bool) -> dict:
         member_count = LeagueMember.query.filter_by(league_id=league.id).count()
         rank_info = _league_rank(league.id, user_id, season) if kicked_off else None
         leagues_payload.append({
-            "id": league.id,
+            "id": league.public_id,
             "name": league.name,
             "code": league.code,
             "role": m.role,

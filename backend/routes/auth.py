@@ -723,7 +723,7 @@ def owned_leagues():
             if m.user_id != user_id
         ]
         result.append({
-            "id": league.id,
+            "id": league.public_id,
             "name": league.name,
             "season": league.season,
             "other_members": other_members,
@@ -746,7 +746,7 @@ def delete_account():
     the same request are counted together during validation.
 
     Requires: Authorization header with Bearer token.
-    Body (optional): { transfers: { "<league_id>": <new_owner_user_id> | null } }
+    Body (optional): { transfers: { "<league_public_id>": <new_owner_user_id> | null } }
 
     Returns:
         200 on success, 400 on invalid/cap-exceeding transfer target, 404 if user not found.
@@ -790,7 +790,7 @@ def delete_account():
     pending: dict[tuple[int, str], int] = {}
 
     for league in owned:
-        raw = transfers.get(str(league.id))
+        raw = transfers.get(league.public_id)
         if raw is None:
             continue  # league will be deleted — no cap concern
 
@@ -825,7 +825,7 @@ def delete_account():
 
     # ── Mutation pass ──────────────────────────────────────────────────────────
     for league in owned:
-        raw = transfers.get(str(league.id))
+        raw = transfers.get(league.public_id)
         new_owner_id = int(raw) if raw is not None else None
 
         if new_owner_id is not None:

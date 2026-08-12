@@ -1,4 +1,5 @@
 import re
+import uuid
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -13,6 +14,23 @@ from services.epl import has_season_kicked_off, get_latest_epl_season
 leagues_bp = Blueprint("leagues", __name__, url_prefix="/api/leagues")
 
 _SEASON_RE = re.compile(r"^[0-9]{4}-[0-9]{2}$")
+
+
+def _get_league(identifier: str) -> League | None:
+    if identifier.isdecimal():
+        try:
+            return db.session.get(League, int(identifier))
+        except ValueError:
+            return None
+
+    try:
+        public_id = uuid.UUID(identifier)
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+    if public_id.version != 4:
+        return None
+    return League.query.filter_by(public_id=str(public_id)).first()
 
 
 def _get_membership(league_id: int, user_id: int) -> LeagueMember | None:
@@ -156,7 +174,7 @@ def create_league():
     db.session.commit()
 
     return jsonify({
-        "id": league.id,
+        "id": league.public_id,
         "name": league.name,
         "code": league.code,
         "season": league.season,
@@ -181,7 +199,7 @@ def get_my_leagues():
         league = m.league
         count = LeagueMember.query.filter_by(league_id=league.id).count()
         result.append({
-            "id": league.id,
+            "id": league.public_id,
             "name": league.name,
             "code": league.code,
             "season": league.season,
@@ -193,9 +211,9 @@ def get_my_leagues():
     return jsonify(result)
 
 
-@leagues_bp.get("/<int:league_id>")
+@leagues_bp.get("/<string:league_identifier>")
 @jwt_required()
-def get_league(league_id: int):
+def get_league(league_identifier: str):
     """Return full league details including a ranked member leaderboard.
 
     After the deadline the member list is sorted by ``current_points`` ascending
@@ -203,21 +221,21 @@ def get_league(league_id: int):
     Only league members can access this endpoint.
 
     Args:
-        league_id: ID of the league to fetch.
+        league_identifier: Public ID of the league to fetch.
 
     Returns:
         League object with members array, or 404 when unavailable.
     """
     user_id = get_jwt_identity()
-    league = db.session.get(League, league_id)
+    league = _get_league(league_identifier)
     if league is None:
         return jsonify({"error": "League not found"}), 404
 
-    if _get_membership(league_id, user_id) is None:
+    if _get_membership(league.id, user_id) is None:
         return jsonify({"error": "League not found"}), 404
 
     kicked_off = has_season_kicked_off(league.season)
-    members = LeagueMember.query.filter_by(league_id=league_id).all()
+    members = LeagueMember.query.filter_by(league_id=league.id).all()
     member_list = [_member_payload(m, league.season, kicked_off) for m in members]
 
     if kicked_off:
@@ -228,7 +246,7 @@ def get_league(league_id: int):
         ))
 
     return jsonify({
-        "id": league.id,
+        "id": league.public_id,
         "name": league.name,
         "code": league.code,
         "season": league.season,
@@ -281,16 +299,16 @@ def join_league():
     db.session.commit()
 
     return jsonify({
-        "id": league.id,
+        "id": league.public_id,
         "name": league.name,
         "code": league.code,
         "season": league.season,
     }), 201
 
 
-@leagues_bp.delete("/<int:league_id>/leave")
+@leagues_bp.delete("/<string:league_identifier>/leave")
 @jwt_required()
-def leave_league(league_id: int):
+def leave_league(league_identifier: str):
     """Remove the authenticated user from a league.
 
     If the user is the owner and there are other members, they must transfer
@@ -298,17 +316,17 @@ def leave_league(league_id: int):
     league is deleted automatically.
 
     Args:
-        league_id: ID of the league to leave.
+        league_identifier: Public ID of the league to leave.
 
     Returns:
         200 on success, 400 if an owner tries to leave with remaining members.
     """
     user_id = get_jwt_identity()
-    league = db.session.get(League, league_id)
+    league = _get_league(league_identifier)
     if league is None:
         return jsonify({"error": "League not found"}), 404
 
-    membership = _get_membership(league_id, user_id)
+    membership = _get_membership(league.id, user_id)
     if membership is None:
         return jsonify({"error": "League not found"}), 404
 
@@ -321,7 +339,7 @@ def leave_league(league_id: int):
         return jsonify({"error": "Past-season leagues cannot be left. Delete your account to remove all league memberships."}), 403
 
     if membership.role == "owner":
-        count = LeagueMember.query.filter_by(league_id=league_id).count()
+        count = LeagueMember.query.filter_by(league_id=league.id).count()
         if count > 1:
             return jsonify({"error": "Transfer ownership or delete the league before leaving"}), 400
         # Sole member — tidy up the whole league
@@ -334,23 +352,23 @@ def leave_league(league_id: int):
     return jsonify({"message": "You have left the league"}), 200
 
 
-@leagues_bp.delete("/<int:league_id>")
+@leagues_bp.delete("/<string:league_identifier>")
 @jwt_required()
-def delete_league(league_id: int):
+def delete_league(league_identifier: str):
     """Delete a league entirely. Owner only.
 
     Args:
-        league_id: ID of the league to delete.
+        league_identifier: Public ID of the league to delete.
 
     Returns:
         200 on success, 403 if not the owner.
     """
     user_id = get_jwt_identity()
-    league = db.session.get(League, league_id)
+    league = _get_league(league_identifier)
     if league is None:
         return jsonify({"error": "League not found"}), 404
 
-    membership = _get_membership(league_id, user_id)
+    membership = _get_membership(league.id, user_id)
     if membership is None:
         return jsonify({"error": "League not found"}), 404
     if membership.role != "owner":
@@ -369,51 +387,51 @@ def delete_league(league_id: int):
     return jsonify({"message": "League deleted"}), 200
 
 
-@leagues_bp.get("/<int:league_id>/members")
+@leagues_bp.get("/<string:league_identifier>/members")
 @jwt_required()
-def get_members(league_id: int):
+def get_members(league_identifier: str):
     """Return all members of a league with their prediction status.
 
     Accessible only to existing league members. Points are omitted before
     the season deadline.
 
     Args:
-        league_id: ID of the league.
+        league_identifier: Public ID of the league.
 
     Returns:
         List of member objects, or 404 when unavailable.
     """
     user_id = get_jwt_identity()
-    league = db.session.get(League, league_id)
+    league = _get_league(league_identifier)
     if league is None:
         return jsonify({"error": "League not found"}), 404
 
-    if _get_membership(league_id, user_id) is None:
+    if _get_membership(league.id, user_id) is None:
         return jsonify({"error": "League not found"}), 404
 
     kicked_off = has_season_kicked_off(league.season)
-    members = LeagueMember.query.filter_by(league_id=league_id).all()
+    members = LeagueMember.query.filter_by(league_id=league.id).all()
     return jsonify([_member_payload(m, league.season, kicked_off) for m in members])
 
 
-@leagues_bp.delete("/<int:league_id>/members/<int:target_user_id>")
+@leagues_bp.delete("/<string:league_identifier>/members/<int:target_user_id>")
 @jwt_required()
-def remove_member(league_id: int, target_user_id: int):
+def remove_member(league_identifier: str, target_user_id: int):
     """Remove a specific member from a league. Owner only.
 
     Args:
-        league_id: ID of the league.
+        league_identifier: Public ID of the league.
         target_user_id: ID of the user to remove.
 
     Returns:
         200 on success, 400 if trying to remove yourself, 403/404 otherwise.
     """
     user_id = get_jwt_identity()
-    league = db.session.get(League, league_id)
+    league = _get_league(league_identifier)
     if league is None:
         return jsonify({"error": "League not found"}), 404
 
-    membership = _get_membership(league_id, user_id)
+    membership = _get_membership(league.id, user_id)
     if membership is None:
         return jsonify({"error": "League not found"}), 404
     if membership.role != "owner":
@@ -430,7 +448,7 @@ def remove_member(league_id: int, target_user_id: int):
     if target_user_id == user_id:
         return jsonify({"error": "Cannot remove yourself — use the leave endpoint instead"}), 400
 
-    target = _get_membership(league_id, target_user_id)
+    target = _get_membership(league.id, target_user_id)
     if target is None:
         return jsonify({"error": "User is not a member of this league"}), 404
 
@@ -439,26 +457,26 @@ def remove_member(league_id: int, target_user_id: int):
     return jsonify({"message": "Member removed"}), 200
 
 
-@leagues_bp.post("/<int:league_id>/transfer-ownership")
+@leagues_bp.post("/<string:league_identifier>/transfer-ownership")
 @jwt_required()
-def transfer_ownership(league_id: int):
+def transfer_ownership(league_identifier: str):
     """Transfer league ownership to another existing member. Owner only.
 
     Request body (JSON):
         new_owner_id (int): User ID of the member to promote.
 
     Args:
-        league_id: ID of the league.
+        league_identifier: Public ID of the league.
 
     Returns:
         200 on success, 400/403/404 as appropriate.
     """
     user_id = get_jwt_identity()
-    league = db.session.get(League, league_id)
+    league = _get_league(league_identifier)
     if league is None:
         return jsonify({"error": "League not found"}), 404
 
-    membership = _get_membership(league_id, user_id)
+    membership = _get_membership(league.id, user_id)
     if membership is None:
         return jsonify({"error": "League not found"}), 404
     if membership.role != "owner":
@@ -479,7 +497,7 @@ def transfer_ownership(league_id: int):
     if new_owner_id == user_id:
         return jsonify({"error": "You are already the owner"}), 400
 
-    new_membership = _get_membership(league_id, new_owner_id)
+    new_membership = _get_membership(league.id, new_owner_id)
     if new_membership is None:
         return jsonify({"error": "Target user is not a member of this league"}), 404
 
