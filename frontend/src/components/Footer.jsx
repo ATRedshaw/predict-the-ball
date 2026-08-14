@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 /**
  * Site-wide footer. Consistent across all pages.
  */
@@ -7,7 +9,9 @@ export default function Footer() {
   return (
     <footer className="max-w-7xl mx-auto mt-6 flex flex-col items-center gap-3 text-center text-teal text-xs">
       <span>
-        © {year} PredictTheBall ·{" "}
+        <Link to="/" className="hover:text-teal-muted transition-colors">
+          © {year} PredictTheBall
+        </Link>{" "}·{" "}
         <a href="https://atredshaw.com" target="_blank" rel="noreferrer" className="hover:text-teal-muted transition-colors">
           Alex Redshaw
         </a>
