@@ -127,7 +127,7 @@ function JourneyNav({ activeStep, onSelect }) {
   return (
     <div className="sticky top-3 z-30 my-6 rounded-2xl border border-white/10 bg-jet-dark/90 p-2 shadow-2xl backdrop-blur-xl md:top-4 md:my-8 md:p-3">
       <div className="relative grid grid-cols-5 gap-1">
-        <div className="pointer-events-none absolute left-[10%] right-[10%] top-4 hidden h-px bg-white/10 sm:block" />
+        <div className="pointer-events-none absolute left-[10%] right-[10%] top-5 z-0 h-px bg-white/15 sm:top-1/2 sm:-translate-y-1/2" aria-hidden="true" />
         {JOURNEY_STEPS.map(step => {
           const isActive = step.id === activeStep
           return (
@@ -136,7 +136,7 @@ function JourneyNav({ activeStep, onSelect }) {
               type="button"
               onClick={() => onSelect(step.id)}
               aria-current={isActive ? 'step' : undefined}
-              className={`relative flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-center transition-colors sm:flex-row sm:justify-center sm:gap-2 sm:px-3 ${
+              className={`relative z-10 flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-center transition-colors sm:flex-row sm:justify-center sm:gap-2 sm:px-3 ${
                 isActive
                   ? 'bg-teal text-white'
                   : 'text-white/35 hover:bg-white/5 hover:text-white'
@@ -147,7 +147,9 @@ function JourneyNav({ activeStep, onSelect }) {
               }`}>
                 {step.number}
               </span>
-              <span className="truncate text-[10px] font-semibold sm:text-xs">{step.label}</span>
+              <span className={`relative z-10 truncate px-0 text-[10px] font-semibold sm:px-1 sm:text-xs ${isActive ? 'sm:bg-teal' : 'sm:bg-jet-dark'}`}>
+                {step.label}
+              </span>
             </button>
           )
         })}
@@ -551,6 +553,8 @@ function HowItWorks() {
   const { accessToken } = useAuth()
   const isLoggedIn = Boolean(accessToken)
   const [activeStep, setActiveStep] = useState('predict')
+  const selectedStepRef = useRef(null)
+  const selectedStepTimeoutRef = useRef(null)
   const [seasonInfo, setSeasonInfo] = useState(null)
   const [teams, setTeams] = useState(DEFAULT_TEAMS)
 
@@ -583,20 +587,36 @@ function HowItWorks() {
       .map(step => document.getElementById(step.id))
       .filter(Boolean)
 
-    if (typeof IntersectionObserver === 'undefined') return undefined
+    if (sections.length === 0) return undefined
 
-    const observer = new IntersectionObserver(
-      entries => {
-        const visible = entries
-          .filter(entry => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
-        if (visible[0]?.target.id) setActiveStep(visible[0].target.id)
-      },
-      { rootMargin: '-20% 0px -58% 0px', threshold: [0, 0.15, 0.35, 0.6] },
-    )
+    let frameId = null
 
-    sections.forEach(section => observer.observe(section))
-    return () => observer.disconnect()
+    function updateActiveStep() {
+      frameId = null
+      if (selectedStepRef.current) return
+
+      const marker = Math.min(180, window.innerHeight * 0.28)
+      const current = sections.reduce((selected, section) => {
+        return section.getBoundingClientRect().top <= marker ? section.id : selected
+      }, sections[0].id)
+
+      setActiveStep(current)
+    }
+
+    function handleScroll() {
+      if (frameId === null) frameId = window.requestAnimationFrame(updateActiveStep)
+    }
+
+    updateActiveStep()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('resize', handleScroll)
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', handleScroll)
+      if (frameId !== null) window.cancelAnimationFrame(frameId)
+      if (selectedStepTimeoutRef.current) window.clearTimeout(selectedStepTimeoutRef.current)
+    }
   }, [])
 
   const deadlineLabel = seasonInfo?.deadline
@@ -617,7 +637,19 @@ function HowItWorks() {
       : { to: '/predictions', label: 'Open predictions' }
 
   function scrollToStep(id) {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const section = document.getElementById(id)
+    if (!section) return
+
+    setActiveStep(id)
+    selectedStepRef.current = id
+    if (selectedStepTimeoutRef.current) window.clearTimeout(selectedStepTimeoutRef.current)
+
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    selectedStepTimeoutRef.current = window.setTimeout(() => {
+      selectedStepRef.current = null
+      selectedStepTimeoutRef.current = null
+      setActiveStep(id)
+    }, 900)
   }
 
   return (
