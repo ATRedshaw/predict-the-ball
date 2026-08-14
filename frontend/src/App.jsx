@@ -213,7 +213,7 @@ function App() {
           {[
             { value: fmtNum(stats?.total_match_outcomes_simulated), label: 'Match outcomes simulated' },
             { value: fmtNum(stats?.total_alternative_seasons_simulated), label: 'Alternative seasons simulated' },
-            { value: fmtNum(stats?.total_predicted_positions), label: 'User positions predicted' },
+            { value: fmtNum(stats?.total_predicted_positions), label: 'User predictions made' },
           ].map(({ value, label }) => (
             <div key={label} className="text-center flex-1">
               <p className="text-white text-2xl font-bold">{value}</p>

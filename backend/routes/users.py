@@ -219,11 +219,9 @@ def get_stats():
     No authentication required. Stats are computed on the fly from live data.
 
     Returns:
-        200 with public prediction, league, user, and simulation totals.
+        200 with public prediction and simulation totals.
     """
     total_predictions = UserPrediction.query.count()
-    total_leagues     = League.query.count()
-    total_users       = User.query.count()
     total_match_outcomes_simulated = db.session.scalar(
         db.select(func.coalesce(func.sum(EloProjection.match_outcomes_simulated), 0))
     )
@@ -233,9 +231,6 @@ def get_stats():
 
     return jsonify({
         "total_predicted_positions": total_predictions * 20,
-        "total_predictions":         total_predictions,
-        "total_leagues":             total_leagues,
-        "total_users":               total_users,
         "total_match_outcomes_simulated": int(total_match_outcomes_simulated),
         "total_alternative_seasons_simulated": int(total_alternative_seasons_simulated),
     }), 200
