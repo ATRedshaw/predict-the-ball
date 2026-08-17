@@ -21,6 +21,7 @@ export default function Footer() {
         <a href="/privacy" className="hover:text-teal-muted transition-colors">Privacy</a>
         <a href="/terms"   className="hover:text-teal-muted transition-colors">Terms</a>
         <a href="mailto:predict.the.ball.app@gmail.com" className="hover:text-teal-muted transition-colors">Contact</a>
+        <a href="https://github.com/ATRedshaw/predict-the-ball" target="_blank" rel="noreferrer" className="hover:text-teal-muted transition-colors">GitHub</a>
       </div>
     </footer>
   );
